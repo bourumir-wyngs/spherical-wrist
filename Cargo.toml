@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 glam = "=0.30.10"
+parry3d = "0.26"
 pyo3 = "0.27"
-rs-opw-kinematics = { path = "../rs-opw-kinematics", default-features = false }
-
+rs-opw-kinematics = { path = "../rs-opw-kinematics", default-features = false, features = ["rrt", "visualization"] }
+rs-read-trimesh = { path = "../rs-read-trimesh", default-features = false, features = ["use-parry-26"] }

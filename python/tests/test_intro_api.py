@@ -1,4 +1,6 @@
-from spherical_wrist import KinematicModel, Parallelogram, Robot
+from pathlib import Path
+
+from spherical_wrist import KinematicModel, Mesh, Parallelogram, Robot
 from scipy.spatial.transform import RigidTransform, Rotation
 import numpy as np
 import pytest
@@ -175,6 +177,31 @@ def test_parallelogram_validates_joint_indices() -> None:
         Parallelogram(scaling=1.0, driven=2, coupled=2)
 
 
+def test_mesh_load_transform_and_collide(tmp_path: Path) -> None:
+    mesh_path = tmp_path / "cube.obj"
+    _write_unit_cube_obj(mesh_path)
+
+    mesh = Mesh.from_path(mesh_path)
+    scaled = Mesh(mesh_path, scale=0.5)
+    far = mesh.transformed(
+        RigidTransform.from_components(
+            rotation=Rotation.identity(),
+            translation=[3, 0, 0],
+        )
+    )
+
+    assert mesh.vertex_count == 8
+    assert mesh.triangle_count == 12
+    assert scaled.vertex_count == 8
+    assert mesh.collides(mesh)
+    assert not mesh.collides(far)
+    assert not mesh.collides(far, safety_distance=1.0)
+    assert mesh.collides(far, safety_distance=2.1)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        mesh.collides(far, safety_distance=-1.0)
+
+
 def _model() -> KinematicModel:
     return KinematicModel(
         a1=400,
@@ -193,4 +220,33 @@ def _tool() -> RigidTransform:
     return RigidTransform.from_components(
         rotation=Rotation.from_euler("xyz", [10, -30, 20], degrees=True),
         translation=[100, 20, -30],
+    )
+
+
+def _write_unit_cube_obj(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "v 0 0 0",
+                "v 1 0 0",
+                "v 1 1 0",
+                "v 0 1 0",
+                "v 0 0 1",
+                "v 1 0 1",
+                "v 1 1 1",
+                "v 0 1 1",
+                "f 1 3 2",
+                "f 1 4 3",
+                "f 5 6 7",
+                "f 5 7 8",
+                "f 1 2 6",
+                "f 1 6 5",
+                "f 2 3 7",
+                "f 2 7 6",
+                "f 3 4 8",
+                "f 3 8 7",
+                "f 4 1 5",
+                "f 4 5 8",
+            ]
+        )
     )
