@@ -7,9 +7,10 @@ the local rs-opw-kinematics crate internally.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from os import PathLike
-from typing import Optional, Sequence, Tuple, cast
+from typing import Iterable, Optional, Sequence, Tuple, cast
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -62,6 +63,7 @@ from ._internal import visualize_robot as _visualize_robot_internal
 from ._internal import visualize_robot_with_safety as _visualize_robot_with_safety_internal
 
 Joints = Tuple[float, float, float, float, float, float]
+PathStep = Joints | AnnotatedJoints
 PathInput = str | PathLike[str]
 TcpBox = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
 
@@ -589,6 +591,23 @@ class VisualizationHandle:
         """Alias for :meth:`set_joints`."""
         self.set_joints(joints)
 
+    def play_path(self, path: Iterable[PathStep], interval: float = 0.05) -> None:
+        """
+        Play a planned path in the visualization window.
+
+        ``path`` may contain raw joint tuples or ``AnnotatedJoints`` values as
+        returned by :meth:`CartesianPlanner.plan`.
+        """
+        if interval < 0.0:
+            raise ValueError("interval must be non-negative")
+
+        for step in path:
+            if not self.is_running:
+                return
+            self.set_joints(_path_step_joints(step))
+            if interval > 0.0:
+                time.sleep(interval)
+
     def set_pose(
         self,
         pose: RigidTransform,
@@ -749,20 +768,48 @@ class CartesianPlanner:
         self,
         robot: KinematicsWithShape,
         start: Joints,
-        land: RigidTransform,
+        land: Optional[RigidTransform],
         steps: Sequence[RigidTransform],
-        park: RigidTransform,
+        park: Optional[RigidTransform],
     ) -> list[AnnotatedJoints]:
-        """Plan a collision-free Cartesian path with annotated joint steps."""
-        return list(
+        """
+        Plan a collision-free Cartesian path with annotated joint steps.
+
+        If ``land`` is ``None``, planning goes directly into the first
+        Cartesian stroke pose. If ``park`` is ``None``, the returned path stops
+        at the final stroke pose.
+        """
+        step_matrices = [step.as_matrix() for step in steps]
+        if land is None:
+            if not step_matrices:
+                raise ValueError("land=None requires at least one Cartesian step")
+            land_matrix = step_matrices[0]
+            trim_land = True
+        else:
+            land_matrix = land.as_matrix()
+            trim_land = False
+
+        if park is None:
+            park_matrix = step_matrices[-1] if step_matrices else land_matrix
+            trim_park = True
+        else:
+            park_matrix = park.as_matrix()
+            trim_park = False
+
+        path = list(
             self._planner.plan(
                 robot._robot,
                 start,
-                land.as_matrix(),
-                [step.as_matrix() for step in steps],
-                park.as_matrix(),
+                land_matrix,
+                step_matrices,
+                park_matrix,
             )
         )
+        if trim_land:
+            path = _without_first_land_marker(path)
+        if trim_park:
+            path = _without_final_park(path)
+        return path
 
     def __repr__(self) -> str:
         return self._planner.__repr__()
@@ -810,6 +857,24 @@ def _mesh_internal(mesh: Mesh) -> _MeshInternal:
     return mesh._mesh
 
 
+def _path_step_joints(step: PathStep) -> Joints:
+    joints = step.joints if isinstance(step, AnnotatedJoints) else step
+    return cast(Joints, tuple(joints))
+
+
+def _without_first_land_marker(path: list[AnnotatedJoints]) -> list[AnnotatedJoints]:
+    for index, step in enumerate(path):
+        if step.has_flag(PATH_FLAG_LAND):
+            return path[:index] + path[index + 1 :]
+    return path
+
+
+def _without_final_park(path: list[AnnotatedJoints]) -> list[AnnotatedJoints]:
+    if path and path[-1].has_flag(PATH_FLAG_PARK):
+        return path[:-1]
+    return path
+
+
 __all__ = [
     "AnnotatedJoints",
     "BY_CONSTRAINTS",
@@ -849,6 +914,7 @@ __all__ = [
     "PATH_FLAG_PARK",
     "PATH_FLAG_PARKING",
     "PATH_FLAG_TRACE",
+    "PathStep",
     "PathInput",
     "Parallelogram",
     "PositionedRobot",

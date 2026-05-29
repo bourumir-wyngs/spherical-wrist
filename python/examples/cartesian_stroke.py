@@ -3,6 +3,7 @@ from __future__ import annotations
 from time import perf_counter
 
 import numpy as np
+from scipy.spatial.transform import RigidTransform, Rotation
 
 from spherical_wrist import (
     CartesianPlanner,
@@ -60,17 +61,38 @@ def main() -> None:
         # configurations to keep the example reproducible.
         return robot.forward(joints)
 
-    start = (-120.0, -90.0, -92.51, 18.42, 82.23, 189.35)
-    land = pose((-120.0, -10.0, -92.51, 18.42, 82.23, 189.35))
+    def tcp_pose(x: float, y: float, z: float) -> RigidTransform:
+        return RigidTransform.from_components(
+            rotation=Rotation.from_euler("z", -90.0, degrees=True),
+            translation=[x, y, z],
+        )
+
+    # Initial position of the robot
+    start = (20, 50.0, 90, 180, -40, 122)
+    # The planner will safely move from "start" to "land"
+    # "land" is normally where the tool is activated so there is a special flag
+    # "landing" is present in movement between landing pose and stroke (tool warming up)
+    land = tcp_pose(1.50, 0.0, 1.6)
     steps = [
-        pose((-225.0, -27.61, 88.35, -85.42, 44.61, 138.0)),
-        pose((-225.0, -33.02, 134.48, -121.08, 54.82, 191.01)),
+        # The actual stroke. This path is rectangle box.
+        tcp_pose(1.50, 0.0, 1.7),
+        tcp_pose(1.00, 0.0, 1.7),
+        tcp_pose(1.00, 1.15, 1.7),
+        tcp_pose(1.50, 1.15, 1.7),
+        tcp_pose(1.50, 0.0, 1.7),
+
+        tcp_pose(1.50, 0.0, 2.0),
+        tcp_pose(1.00, 0.0, 2.0),
+        tcp_pose(1.00, 1.15, 2.0),
+        tcp_pose(1.50, 1.15, 2.0),
+        tcp_pose(1.50, 0.0, 2.0),
     ]
-    park = pose((-225.0, -27.61, 88.35, -85.42, 44.61, 110.0))
+    # "Post last" position with special flag to deactivate the tool
+    park = land
 
     planner = CartesianPlanner(
-        check_step_m=0.02,
-        check_step_rad=3.0,
+        check_step_m=0.05,
+        check_step_rad=4.0,
         max_transition_cost=3.0,
         linear_recursion_depth=8,
         rrt=RRTPlanner(

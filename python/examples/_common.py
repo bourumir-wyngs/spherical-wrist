@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+import time
 from pathlib import Path
 from typing import Iterable
 
@@ -23,10 +25,12 @@ from spherical_wrist import (
     Mesh,
     NEVER_COLLIDES,
     SafetyDistances,
+    TcpBox,
 )
 from spherical_wrist import Joints
 
 
+DEFAULT_TCP_BOX: TcpBox = ((-2.0, 2.0), (-2.0, 2.0), (1.0, 2.0))
 WORKSPACE = Path(__file__).resolve().parents[3]
 RS_OPW_KINEMATICS = WORKSPACE / "rs-opw-kinematics"
 DATA = RS_OPW_KINEMATICS / "src" / "tests" / "data"
@@ -101,6 +105,17 @@ def dump_solutions(solutions: Iterable[Joints], *, limit: int | None = None) -> 
             print(f"  ... {len(solutions) - limit} more")
             break
         print(f"  {index:02d}: {np.round(np.asarray(joints), 4).tolist()}")
+
+
+def wait_for_visualization(handle) -> None:
+    """Keep an example alive while the visualization window is open."""
+    if sys.stdin.isatty():
+        input("Window is running. Press Enter here to close it... ")
+        return
+
+    print("Window is running. Close the window to exit.")
+    while handle.is_running:
+        time.sleep(0.1)
 
 
 def create_rx160_robot(

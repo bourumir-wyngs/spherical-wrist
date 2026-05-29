@@ -1,10 +1,13 @@
 from spherical_wrist import (
+    CartesianPlanner,
     Constraints,
     KinematicModel,
     KinematicsWithShape,
     Mesh,
     NEVER_COLLIDES,
+    RRTPlanner,
     SafetyDistances,
+    VisualizationHandle,
     visualize_robot,
     visualize_robot_with_safety,
 )
@@ -29,6 +32,38 @@ def test_visualization_bindings_validate_tcp_box_without_opening_window() -> Non
 
     with pytest.raises(ValueError, match="tcp_box"):
         robot.visualize(joints, invalid_tcp_box)
+
+
+def test_visualization_handle_can_play_annotated_path_without_opening_window() -> None:
+    robot = _shape_robot()
+    start = (10.0, 20.0, -70.0, 30.0, 20.0, 10.0)
+    pose = robot.forward(start)
+    path = CartesianPlanner(
+        rrt=RRTPlanner(step_size_joint_space=720.0, max_try=1),
+        debug=False,
+    ).plan(robot, start, pose, [], pose)
+    fake_internal = _RecordingVisualizationInternal()
+    handle = VisualizationHandle._from_internal(fake_internal)
+
+    handle.play_path(path, interval=0.0)
+
+    assert fake_internal.joints == [tuple(step.joints) for step in path]
+
+
+def test_visualization_handle_rejects_negative_playback_interval() -> None:
+    handle = VisualizationHandle._from_internal(_RecordingVisualizationInternal())
+
+    with pytest.raises(ValueError, match="interval"):
+        handle.play_path([], interval=-0.1)
+
+
+class _RecordingVisualizationInternal:
+    def __init__(self) -> None:
+        self.is_running = True
+        self.joints: list[tuple[float, float, float, float, float, float]] = []
+
+    def set_joints(self, joints) -> None:
+        self.joints.append(tuple(joints))
 
 
 def _shape_robot() -> KinematicsWithShape:
