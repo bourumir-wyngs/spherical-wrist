@@ -19,7 +19,7 @@ test = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+profile = "release"
 python-source = "python"
 module-name = "spherical_wrist._internal"
 include = ["python/spherical_wrist/py.typed"]
-
