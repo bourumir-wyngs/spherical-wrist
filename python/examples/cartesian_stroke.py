@@ -19,9 +19,10 @@ from spherical_wrist import (
     PATH_FLAG_PARKING,
     PATH_FLAG_TRACE,
     RRTPlanner,
+    visualize_robot,
 )
 
-from _common import create_rx160_robot
+from _common import DEFAULT_TCP_BOX, create_rx160_robot, wait_for_visualization
 
 
 FLAG_NAMES = [
@@ -93,6 +94,14 @@ def main() -> None:
         print(f"{index:03d}: {joints}  {describe_flags(step.flags)}")
 
     print(f"Took {perf_counter() - started:.3f} s")
+
+    handle = visualize_robot(robot, path[0].joints, DEFAULT_TCP_BOX)
+    try:
+        print("Playing planned path...")
+        handle.play_path(path)
+        wait_for_visualization(handle)
+    finally:
+        handle.close()
 
 
 if __name__ == "__main__":
