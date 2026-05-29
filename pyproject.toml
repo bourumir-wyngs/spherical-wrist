@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "spherical-wrist"
+dynamic = ["version"]
+requires-python = ">=3.11"
+description = "Python bindings for spherical-wrist industrial robot kinematics"
+dependencies = [
+    "numpy>=1.26.4",
+    "scipy>=1.16.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "spherical_wrist._internal"
+include = ["python/spherical_wrist/py.typed"]
+
