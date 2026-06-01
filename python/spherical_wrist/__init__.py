@@ -741,7 +741,7 @@ class CartesianPlanner:
 
     @property
     def linear_recursion_depth(self) -> int:
-        """Maximum recursive split depth for Cartesian transitions."""
+        """Maximum adaptive split depth for Cartesian transitions."""
         return int(self._planner.linear_recursion_depth)
 
     @property
