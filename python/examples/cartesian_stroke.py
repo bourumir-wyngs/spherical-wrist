@@ -103,7 +103,7 @@ def main() -> None:
     planner = CartesianPlanner(
         check_step_m=0.07,
         check_step_rad=4.0,
-        max_transition_cost=16,
+        max_transition_cost=15,
         linear_recursion_depth=8,
         rrt=RRTPlanner(
             step_size_joint_space=2.0,
