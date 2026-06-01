@@ -4,10 +4,10 @@ use parry3d::shape::TriMesh;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
-    AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian,
-    DEFAULT_CARTESIAN_LAYER_STATES, DEFAULT_MAX_SOLUTIONS_AWAIT,
-    DEFAULT_ONBOARDING_SUFFIX_CANDIDATES, DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
-    DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind, PathFlags,
+    AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian, DEFAULT_CARTESIAN_LAYER_STATES,
+    DEFAULT_MAX_SOLUTIONS_AWAIT, DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
+    DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES, DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind,
+    PathFlags,
 };
 use rs_opw_kinematics::collisions::{
     BaseBody, CheckMode, CollisionBody as RsCollisionBody, NEVER_COLLIDES, RobotBody,
@@ -880,18 +880,20 @@ impl KinematicsWithShape {
 struct RRTPlanner {
     step_size_joint_space: f64,
     max_try: usize,
+    smooth: usize,
     debug: bool,
 }
 
 #[pymethods]
 impl RRTPlanner {
     #[new]
-    #[pyo3(signature = (step_size_joint_space=3.0, max_try=2000, debug=false, radians=false))]
+    #[pyo3(signature = (step_size_joint_space=3.0, max_try=2000, debug=false, radians=false, smooth=0))]
     fn new(
         step_size_joint_space: f64,
         max_try: usize,
         debug: bool,
         radians: bool,
+        smooth: usize,
     ) -> PyResult<Self> {
         let step_size_joint_space =
             positive_angle_to_internal(step_size_joint_space, radians, "step_size_joint_space")?;
@@ -902,6 +904,7 @@ impl RRTPlanner {
         Ok(Self {
             step_size_joint_space,
             max_try,
+            smooth,
             debug,
         })
     }
@@ -914,6 +917,11 @@ impl RRTPlanner {
     #[getter]
     fn max_try(&self) -> usize {
         self.max_try
+    }
+
+    #[getter]
+    fn smooth(&self) -> usize {
+        self.smooth
     }
 
     #[getter]
@@ -947,9 +955,10 @@ impl RRTPlanner {
 
     fn __repr__(&self) -> String {
         format!(
-            "RRTPlanner(step_size_joint_space={}, max_try={}, debug={})",
+            "RRTPlanner(step_size_joint_space={}, max_try={}, smooth={}, debug={})",
             self.step_size_joint_space(false),
             self.max_try,
+            self.smooth,
             self.debug
         )
     }
@@ -961,6 +970,7 @@ impl Default for RRTPlanner {
         Self {
             step_size_joint_space: planner.step_size_joint_space,
             max_try: planner.max_try,
+            smooth: planner.smooth,
             debug: planner.debug,
         }
     }
@@ -971,6 +981,7 @@ impl RRTPlanner {
         RsRRTPlanner {
             step_size_joint_space: self.step_size_joint_space,
             max_try: self.max_try,
+            smooth: self.smooth,
             debug: self.debug,
         }
     }

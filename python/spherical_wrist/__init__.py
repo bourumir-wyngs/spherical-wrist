@@ -645,6 +645,7 @@ class RRTPlanner:
         max_try: int = 2000,
         debug: bool = False,
         radians: bool = False,
+        smooth: int = 0,
     ) -> None:
         """
         Initialize an RRT planner.
@@ -653,12 +654,14 @@ class RRTPlanner:
             default; pass ``radians=True`` to provide radians.
         :param max_try: Maximum RRT expansion attempts.
         :param debug: Whether upstream planner diagnostics are printed.
+        :param smooth: Shortcut smoothing budget. Zero keeps the raw RRT path.
         """
         self._planner = _RRTPlannerInternal(
-            step_size_joint_space,
-            max_try,
-            debug,
-            radians,
+            step_size_joint_space=step_size_joint_space,
+            max_try=max_try,
+            debug=debug,
+            radians=radians,
+            smooth=smooth,
         )
 
     @classmethod
@@ -671,6 +674,11 @@ class RRTPlanner:
     def max_try(self) -> int:
         """Maximum RRT expansion attempts."""
         return int(self._planner.max_try)
+
+    @property
+    def smooth(self) -> int:
+        """Shortcut smoothing budget."""
+        return int(self._planner.smooth)
 
     @property
     def debug(self) -> bool:

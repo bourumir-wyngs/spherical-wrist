@@ -98,7 +98,7 @@ def dump_joints(joints: Joints, *, label: str | None = None) -> None:
 def dump_solutions(solutions: Iterable[Joints], *, limit: int | None = None) -> None:
     """Print IK/path solutions compactly."""
     solutions = list(solutions)
-    print(f"{len(solutions)} solution(s)")
+    print(f"{len(solutions)} solution step(s)")
     for index, joints in enumerate(solutions):
         if limit is not None and index >= limit:
             print(f"  ... {len(solutions) - limit} more")

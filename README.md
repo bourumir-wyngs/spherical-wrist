@@ -171,7 +171,7 @@ usual Python-side joint unit convention:
 ```python
 from spherical_wrist import CartesianPlanner, RRTPlanner
 
-rrt = RRTPlanner(step_size_joint_space=3.0, max_try=2000)
+rrt = RRTPlanner(step_size_joint_space=3.0, max_try=2000, smooth=100)
 joint_path = rrt.plan_rrt(
     shape_robot,
     start=(0, 0, 0, 0, 0, 0),

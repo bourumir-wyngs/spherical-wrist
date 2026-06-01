@@ -273,6 +273,7 @@ class VisualizationHandle:
 
 class RRTPlanner:
     max_try: int
+    smooth: int
     debug: bool
 
     def __init__(
@@ -281,6 +282,7 @@ class RRTPlanner:
         max_try: int = 2000,
         debug: bool = False,
         radians: bool = False,
+        smooth: int = 0,
     ) -> None: ...
 
     def step_size_joint_space(self, radians: bool = False) -> float: ...

@@ -110,7 +110,7 @@ def main() -> None:
             max_try=100,
             debug=False,
         ),
-        allow_reconfigure=True,
+        allow_reconfigure=False,
         include_linear_interpolation=True,
         debug=False,
     )

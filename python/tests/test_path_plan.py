@@ -21,10 +21,11 @@ def test_rrt_planner_returns_collision_free_joint_path() -> None:
     robot = _shape_robot()
     start = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     goal = (1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    planner = RRTPlanner(step_size_joint_space=720.0, max_try=1)
+    planner = RRTPlanner(step_size_joint_space=720.0, max_try=1, smooth=1)
 
     path = planner.plan_rrt(robot, start, goal)
 
+    assert planner.smooth == 1
     assert len(path) >= 2
     assert np.allclose(path[0], start)
     assert np.allclose(path[-1], goal)
