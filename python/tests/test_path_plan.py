@@ -94,6 +94,11 @@ def test_cartesian_planner_requires_step_when_land_is_none() -> None:
         planner.plan(robot, start, None, [], pose)
 
 
+def test_cartesian_planner_allow_reconfigure_option() -> None:
+    assert CartesianPlanner().allow_reconfigure is True
+    assert CartesianPlanner(allow_reconfigure=False).allow_reconfigure is False
+
+
 def _shape_robot() -> KinematicsWithShape:
     return KinematicsWithShape(
         _model(),

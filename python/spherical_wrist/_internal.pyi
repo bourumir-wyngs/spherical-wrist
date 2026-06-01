@@ -34,10 +34,11 @@ PATH_FLAG_PARK: int
 PATH_FLAG_PARKING: int
 PATH_FLAG_FORWARDS: int
 PATH_FLAG_BACKWARDS: int
-PATH_FLAG_ALTERED: int
+PATH_FLAG_RECONFIGURING: int
 PATH_FLAG_ORIGINAL: int
 PATH_FLAG_DEBUG: int
-PATH_FLAG_CARTESIAN: int
+MOVE_KIND_JOINT: str
+MOVE_KIND_CARTESIAN: str
 
 
 class KinematicModel:
@@ -298,6 +299,7 @@ class CartesianPlanner:
     transition_coefficients: Joints
     linear_recursion_depth: int
     rrt: RRTPlanner
+    allow_reconfigure: bool
     include_linear_interpolation: bool
     debug: bool
 
@@ -309,6 +311,7 @@ class CartesianPlanner:
         transition_coefficients: Optional[Joints] = None,
         linear_recursion_depth: int = 8,
         rrt: Optional[RRTPlanner] = None,
+        allow_reconfigure: bool = True,
         include_linear_interpolation: bool = True,
         debug: bool = False,
         radians: bool = False,
@@ -333,6 +336,7 @@ class CartesianPlanner:
 class AnnotatedJoints:
     joints: Joints
     flags: int
+    move_into: str
 
     def has_flag(self, flag: int) -> bool: ...
 

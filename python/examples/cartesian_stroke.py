@@ -8,7 +8,6 @@ from scipy.spatial.transform import RigidTransform, Rotation
 from spherical_wrist import (
     CartesianPlanner,
     PATH_FLAG_BACKWARDS,
-    PATH_FLAG_CARTESIAN,
     PATH_FLAG_DEBUG,
     PATH_FLAG_FORWARDS,
     PATH_FLAG_LAND,
@@ -18,6 +17,7 @@ from spherical_wrist import (
     PATH_FLAG_ORIGINAL,
     PATH_FLAG_PARK,
     PATH_FLAG_PARKING,
+    PATH_FLAG_RECONFIGURING,
     PATH_FLAG_TRACE,
     RRTPlanner,
     visualize_robot,
@@ -36,9 +36,9 @@ FLAG_NAMES = [
     (PATH_FLAG_PARKING, "PARKING"),
     (PATH_FLAG_FORWARDS, "FORWARDS"),
     (PATH_FLAG_BACKWARDS, "BACKWARDS"),
+    (PATH_FLAG_RECONFIGURING, "RECONFIGURING"),
     (PATH_FLAG_ORIGINAL, "ORIGINAL"),
     (PATH_FLAG_DEBUG, "DEBUG"),
-    (PATH_FLAG_CARTESIAN, "CARTESIAN"),
 ]
 
 
@@ -100,6 +100,7 @@ def main() -> None:
             max_try=100,
             debug=False,
         ),
+        allow_reconfigure=True,
         include_linear_interpolation=True,
         debug=False,
     )
@@ -113,7 +114,7 @@ def main() -> None:
 
     for index, step in enumerate(path):
         joints = np.round(np.asarray(step.joints), 4).tolist()
-        print(f"{index:03d}: {joints}  {describe_flags(step.flags)}")
+        print(f"{index:03d}: {joints}  {step.move_into}  {describe_flags(step.flags)}")
 
     print(f"Took {perf_counter() - started:.3f} s")
 

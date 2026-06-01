@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
     AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian, DEFAULT_TRANSITION_COSTS,
-    PathFlags,
+    MoveKind as RsMoveKind, PathFlags,
 };
 use rs_opw_kinematics::collisions::{
     BaseBody, CheckMode, CollisionBody as RsCollisionBody, NEVER_COLLIDES, RobotBody,
@@ -983,6 +983,7 @@ struct CartesianPlanner {
     transition_coefficients: Joints,
     linear_recursion_depth: usize,
     rrt: RRTPlanner,
+    allow_reconfigure: bool,
     include_linear_interpolation: bool,
     debug: bool,
 }
@@ -997,6 +998,7 @@ impl CartesianPlanner {
         transition_coefficients=None,
         linear_recursion_depth=8,
         rrt=None,
+        allow_reconfigure=true,
         include_linear_interpolation=true,
         debug=false,
         radians=false,
@@ -1009,6 +1011,7 @@ impl CartesianPlanner {
         transition_coefficients: Option<[f64; 6]>,
         linear_recursion_depth: usize,
         rrt: Option<RRTPlanner>,
+        allow_reconfigure: bool,
         include_linear_interpolation: bool,
         debug: bool,
         radians: bool,
@@ -1031,6 +1034,7 @@ impl CartesianPlanner {
             transition_coefficients,
             linear_recursion_depth,
             rrt: rrt.unwrap_or_default(),
+            allow_reconfigure,
             include_linear_interpolation,
             debug,
         })
@@ -1064,6 +1068,11 @@ impl CartesianPlanner {
     #[getter]
     fn rrt(&self) -> RRTPlanner {
         self.rrt
+    }
+
+    #[getter]
+    fn allow_reconfigure(&self) -> bool {
+        self.allow_reconfigure
     }
 
     #[getter]
@@ -1106,6 +1115,7 @@ impl CartesianPlanner {
             transition_coefficients: self.transition_coefficients,
             linear_recursion_depth: self.linear_recursion_depth,
             rrt: self.rrt.to_rs_rrt(),
+            allow_reconfigure: self.allow_reconfigure,
             include_linear_interpolation: self.include_linear_interpolation,
             debug: self.debug,
         };
@@ -1118,11 +1128,12 @@ impl CartesianPlanner {
 
     fn __repr__(&self) -> String {
         format!(
-            "CartesianPlanner(check_step_m={}, check_step_rad={}, max_transition_cost={}, linear_recursion_depth={}, include_linear_interpolation={}, debug={})",
+            "CartesianPlanner(check_step_m={}, check_step_rad={}, max_transition_cost={}, linear_recursion_depth={}, allow_reconfigure={}, include_linear_interpolation={}, debug={})",
             self.check_step_m,
             self.check_step_rad(false),
             self.max_transition_cost(false),
             self.linear_recursion_depth,
+            self.allow_reconfigure,
             self.include_linear_interpolation,
             self.debug
         )
@@ -1130,10 +1141,11 @@ impl CartesianPlanner {
 }
 
 #[pyclass(frozen)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct AnnotatedJoints {
     joints: [f64; 6],
     flags: u32,
+    move_into: String,
 }
 
 #[pymethods]
@@ -1148,6 +1160,11 @@ impl AnnotatedJoints {
         self.flags
     }
 
+    #[getter]
+    fn move_into(&self) -> String {
+        self.move_into.clone()
+    }
+
     #[pyo3(signature = (flag))]
     fn has_flag(&self, flag: u32) -> bool {
         self.flags & flag == flag
@@ -1155,8 +1172,8 @@ impl AnnotatedJoints {
 
     fn __repr__(&self) -> String {
         format!(
-            "AnnotatedJoints(joints={:?}, flags={})",
-            self.joints, self.flags
+            "AnnotatedJoints(joints={:?}, flags={}, move_into={:?})",
+            self.joints, self.flags, self.move_into
         )
     }
 }
@@ -1816,6 +1833,11 @@ fn annotated_joints_from_internal(
         .map(|step| AnnotatedJoints {
             joints: angles_from_radians(step.joints, !degrees),
             flags: step.flags.bits(),
+            move_into: match step.move_into {
+                RsMoveKind::Joint => "joint",
+                RsMoveKind::Cartesian => "cartesian",
+            }
+            .to_string(),
         })
         .collect()
 }
@@ -2034,10 +2056,11 @@ fn spherical_wrist(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("PATH_FLAG_PARKING", PathFlags::PARKING.bits())?;
     m.add("PATH_FLAG_FORWARDS", PathFlags::FORWARDS.bits())?;
     m.add("PATH_FLAG_BACKWARDS", PathFlags::BACKWARDS.bits())?;
-    m.add("PATH_FLAG_ALTERED", PathFlags::ALTERED.bits())?;
+    m.add("PATH_FLAG_RECONFIGURING", PathFlags::RECONFIGURING.bits())?;
     m.add("PATH_FLAG_ORIGINAL", PathFlags::ORIGINAL.bits())?;
     m.add("PATH_FLAG_DEBUG", PathFlags::DEBUG.bits())?;
-    m.add("PATH_FLAG_CARTESIAN", PathFlags::CARTESIAN.bits())?;
+    m.add("MOVE_KIND_JOINT", "joint")?;
+    m.add("MOVE_KIND_CARTESIAN", "cartesian")?;
     m.add_class::<AnnotatedJoints>()?;
     m.add_class::<CartesianPlanner>()?;
     m.add_class::<Constraints>()?;

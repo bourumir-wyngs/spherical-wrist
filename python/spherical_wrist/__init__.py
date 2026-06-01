@@ -38,10 +38,10 @@ from ._internal import J_TOOL
 from ._internal import KinematicsWithShape as _KinematicsWithShapeInternal
 from ._internal import KinematicModel
 from ._internal import Mesh as _MeshInternal
+from ._internal import MOVE_KIND_CARTESIAN
+from ._internal import MOVE_KIND_JOINT
 from ._internal import NEVER_COLLIDES
-from ._internal import PATH_FLAG_ALTERED
 from ._internal import PATH_FLAG_BACKWARDS
-from ._internal import PATH_FLAG_CARTESIAN
 from ._internal import PATH_FLAG_DEBUG
 from ._internal import PATH_FLAG_FORWARDS
 from ._internal import PATH_FLAG_LAND
@@ -52,6 +52,7 @@ from ._internal import PATH_FLAG_ONBOARDING
 from ._internal import PATH_FLAG_ORIGINAL
 from ._internal import PATH_FLAG_PARK
 from ._internal import PATH_FLAG_PARKING
+from ._internal import PATH_FLAG_RECONFIGURING
 from ._internal import PATH_FLAG_TRACE
 from ._internal import Parallelogram
 from ._internal import RRTPlanner as _RRTPlannerInternal
@@ -704,6 +705,7 @@ class CartesianPlanner:
         transition_coefficients: Optional[Joints] = None,
         linear_recursion_depth: int = 8,
         rrt: Optional[RRTPlanner] = None,
+        allow_reconfigure: bool = True,
         include_linear_interpolation: bool = True,
         debug: bool = False,
         radians: bool = False,
@@ -721,6 +723,7 @@ class CartesianPlanner:
             transition_coefficients,
             linear_recursion_depth,
             None if rrt is None else rrt._planner,
+            allow_reconfigure,
             include_linear_interpolation,
             debug,
             radians,
@@ -745,6 +748,11 @@ class CartesianPlanner:
     def rrt(self) -> RRTPlanner:
         """RRT planner used for non-Cartesian fallback segments."""
         return RRTPlanner._from_internal(self._planner.rrt)
+
+    @property
+    def allow_reconfigure(self) -> bool:
+        """Whether failed Cartesian stroke segments may use RRT reconfiguration."""
+        return bool(self._planner.allow_reconfigure)
 
     @property
     def include_linear_interpolation(self) -> bool:
@@ -899,10 +907,10 @@ __all__ = [
     "KinematicsWithShape",
     "KinematicModel",
     "Mesh",
+    "MOVE_KIND_CARTESIAN",
+    "MOVE_KIND_JOINT",
     "NEVER_COLLIDES",
-    "PATH_FLAG_ALTERED",
     "PATH_FLAG_BACKWARDS",
-    "PATH_FLAG_CARTESIAN",
     "PATH_FLAG_DEBUG",
     "PATH_FLAG_FORWARDS",
     "PATH_FLAG_LAND",
@@ -913,6 +921,7 @@ __all__ = [
     "PATH_FLAG_ORIGINAL",
     "PATH_FLAG_PARK",
     "PATH_FLAG_PARKING",
+    "PATH_FLAG_RECONFIGURING",
     "PATH_FLAG_TRACE",
     "PathStep",
     "PathInput",
