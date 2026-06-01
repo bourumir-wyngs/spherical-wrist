@@ -5,6 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
     AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian,
+    DEFAULT_CARTESIAN_LAYER_STATES, DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
     DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES, DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind,
     PathFlags,
 };
@@ -1118,6 +1119,8 @@ impl CartesianPlanner {
             rrt: self.rrt.to_rs_rrt(),
             allow_reconfigure: self.allow_reconfigure,
             max_reconfiguration_prefix_candidates: DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
+            max_onboarding_suffix_candidates: DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
+            max_cartesian_layer_states: DEFAULT_CARTESIAN_LAYER_STATES,
             include_linear_interpolation: self.include_linear_interpolation,
             debug: self.debug,
         };
