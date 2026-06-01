@@ -25,6 +25,7 @@ from ._internal import CONSTRAINT_CENTERED
 from ._internal import Constraints
 from ._internal import AnnotatedJoints
 from ._internal import CartesianPlanner as _CartesianPlannerInternal
+from ._internal import DEFAULT_MAX_SOLUTIONS_AWAIT
 from ._internal import DEFAULT_TRANSITION_COSTS
 from ._internal import ENV_START_IDX
 from ._internal import J1
@@ -706,6 +707,7 @@ class CartesianPlanner:
         linear_recursion_depth: int = 8,
         rrt: Optional[RRTPlanner] = None,
         allow_reconfigure: bool = True,
+        max_solutions_await: int = DEFAULT_MAX_SOLUTIONS_AWAIT,
         include_linear_interpolation: bool = True,
         debug: bool = False,
         radians: bool = False,
@@ -717,16 +719,17 @@ class CartesianPlanner:
         provide radians.
         """
         self._planner = _CartesianPlannerInternal(
-            check_step_m,
-            check_step_rad,
-            max_transition_cost,
-            transition_coefficients,
-            linear_recursion_depth,
-            None if rrt is None else rrt._planner,
-            allow_reconfigure,
-            include_linear_interpolation,
-            debug,
-            radians,
+            check_step_m=check_step_m,
+            check_step_rad=check_step_rad,
+            max_transition_cost=max_transition_cost,
+            transition_coefficients=transition_coefficients,
+            linear_recursion_depth=linear_recursion_depth,
+            rrt=None if rrt is None else rrt._planner,
+            allow_reconfigure=allow_reconfigure,
+            max_solutions_await=max_solutions_await,
+            include_linear_interpolation=include_linear_interpolation,
+            debug=debug,
+            radians=radians,
         )
 
     @property
@@ -753,6 +756,11 @@ class CartesianPlanner:
     def allow_reconfigure(self) -> bool:
         """Whether failed Cartesian stroke segments may use RRT reconfiguration."""
         return bool(self._planner.allow_reconfigure)
+
+    @property
+    def max_solutions_await(self) -> int:
+        """Number of feasible suffix solutions collected before cancelling extra probes."""
+        return int(self._planner.max_solutions_await)
 
     @property
     def include_linear_interpolation(self) -> bool:
@@ -893,6 +901,7 @@ __all__ = [
     "CONSTRAINT_CENTERED",
     "Constraints",
     "CartesianPlanner",
+    "DEFAULT_MAX_SOLUTIONS_AWAIT",
     "DEFAULT_TRANSITION_COSTS",
     "ENV_START_IDX",
     "J1",

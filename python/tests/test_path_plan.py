@@ -1,6 +1,7 @@
 from spherical_wrist import (
     Constraints,
     CartesianPlanner,
+    DEFAULT_MAX_SOLUTIONS_AWAIT,
     KinematicModel,
     KinematicsWithShape,
     Mesh,
@@ -97,6 +98,20 @@ def test_cartesian_planner_requires_step_when_land_is_none() -> None:
 def test_cartesian_planner_allow_reconfigure_option() -> None:
     assert CartesianPlanner().allow_reconfigure is True
     assert CartesianPlanner(allow_reconfigure=False).allow_reconfigure is False
+
+
+def test_cartesian_planner_interpolation_and_solution_limit_options() -> None:
+    default_planner = CartesianPlanner()
+    assert default_planner.include_linear_interpolation is True
+    assert default_planner.max_solutions_await == DEFAULT_MAX_SOLUTIONS_AWAIT
+
+    configured = CartesianPlanner(
+        max_solutions_await=7,
+        include_linear_interpolation=False,
+    )
+
+    assert configured.max_solutions_await == 7
+    assert configured.include_linear_interpolation is False
 
 
 def _shape_robot() -> KinematicsWithShape:

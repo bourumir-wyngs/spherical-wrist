@@ -101,8 +101,8 @@ def main() -> None:
     park = land
 
     planner = CartesianPlanner(
-        check_step_m=0.07,
-        check_step_rad=4.0,
+        check_step_m=0.05,
+        check_step_rad=3.0,
         max_transition_cost=15,
         linear_recursion_depth=8,
         rrt=RRTPlanner(

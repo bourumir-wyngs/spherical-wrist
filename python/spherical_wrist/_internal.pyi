@@ -23,6 +23,7 @@ ENV_START_IDX: int
 CHECK_MODE_ALL: str
 CHECK_MODE_FIRST_COLLISION_ONLY: str
 CHECK_MODE_NO_CHECK: str
+DEFAULT_MAX_SOLUTIONS_AWAIT: int
 DEFAULT_TRANSITION_COSTS: Joints
 PATH_FLAG_NONE: int
 PATH_FLAG_ONBOARDING: int
@@ -300,6 +301,7 @@ class CartesianPlanner:
     linear_recursion_depth: int
     rrt: RRTPlanner
     allow_reconfigure: bool
+    max_solutions_await: int
     include_linear_interpolation: bool
     debug: bool
 
@@ -312,6 +314,7 @@ class CartesianPlanner:
         linear_recursion_depth: int = 8,
         rrt: Optional[RRTPlanner] = None,
         allow_reconfigure: bool = True,
+        max_solutions_await: int = 3,
         include_linear_interpolation: bool = True,
         debug: bool = False,
         radians: bool = False,

@@ -5,9 +5,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
     AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian,
-    DEFAULT_CARTESIAN_LAYER_STATES, DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
-    DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES, DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind,
-    PathFlags,
+    DEFAULT_CARTESIAN_LAYER_STATES, DEFAULT_MAX_SOLUTIONS_AWAIT,
+    DEFAULT_ONBOARDING_SUFFIX_CANDIDATES, DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
+    DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind, PathFlags,
 };
 use rs_opw_kinematics::collisions::{
     BaseBody, CheckMode, CollisionBody as RsCollisionBody, NEVER_COLLIDES, RobotBody,
@@ -986,6 +986,7 @@ struct CartesianPlanner {
     linear_recursion_depth: usize,
     rrt: RRTPlanner,
     allow_reconfigure: bool,
+    max_solutions_await: usize,
     include_linear_interpolation: bool,
     debug: bool,
 }
@@ -1001,6 +1002,7 @@ impl CartesianPlanner {
         linear_recursion_depth=8,
         rrt=None,
         allow_reconfigure=true,
+        max_solutions_await=3,
         include_linear_interpolation=true,
         debug=false,
         radians=false,
@@ -1014,6 +1016,7 @@ impl CartesianPlanner {
         linear_recursion_depth: usize,
         rrt: Option<RRTPlanner>,
         allow_reconfigure: bool,
+        max_solutions_await: usize,
         include_linear_interpolation: bool,
         debug: bool,
         radians: bool,
@@ -1037,6 +1040,7 @@ impl CartesianPlanner {
             linear_recursion_depth,
             rrt: rrt.unwrap_or_default(),
             allow_reconfigure,
+            max_solutions_await,
             include_linear_interpolation,
             debug,
         })
@@ -1075,6 +1079,11 @@ impl CartesianPlanner {
     #[getter]
     fn allow_reconfigure(&self) -> bool {
         self.allow_reconfigure
+    }
+
+    #[getter]
+    fn max_solutions_await(&self) -> usize {
+        self.max_solutions_await
     }
 
     #[getter]
@@ -1121,6 +1130,7 @@ impl CartesianPlanner {
             max_reconfiguration_prefix_candidates: DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
             max_onboarding_suffix_candidates: DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
             max_cartesian_layer_states: DEFAULT_CARTESIAN_LAYER_STATES,
+            max_solutions_await: self.max_solutions_await,
             include_linear_interpolation: self.include_linear_interpolation,
             debug: self.debug,
         };
@@ -1133,12 +1143,13 @@ impl CartesianPlanner {
 
     fn __repr__(&self) -> String {
         format!(
-            "CartesianPlanner(check_step_m={}, check_step_rad={}, max_transition_cost={}, linear_recursion_depth={}, allow_reconfigure={}, include_linear_interpolation={}, debug={})",
+            "CartesianPlanner(check_step_m={}, check_step_rad={}, max_transition_cost={}, linear_recursion_depth={}, allow_reconfigure={}, max_solutions_await={}, include_linear_interpolation={}, debug={})",
             self.check_step_m,
             self.check_step_rad(false),
             self.max_transition_cost(false),
             self.linear_recursion_depth,
             self.allow_reconfigure,
+            self.max_solutions_await,
             self.include_linear_interpolation,
             self.debug
         )
@@ -2051,6 +2062,7 @@ fn spherical_wrist(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("CHECK_MODE_FIRST_COLLISION_ONLY", "first_collision_only")?;
     m.add("CHECK_MODE_NO_CHECK", "no_check")?;
     m.add("DEFAULT_TRANSITION_COSTS", DEFAULT_TRANSITION_COSTS)?;
+    m.add("DEFAULT_MAX_SOLUTIONS_AWAIT", DEFAULT_MAX_SOLUTIONS_AWAIT)?;
     m.add("PATH_FLAG_NONE", PathFlags::NONE.bits())?;
     m.add("PATH_FLAG_ONBOARDING", PathFlags::ONBOARDING.bits())?;
     m.add("PATH_FLAG_TRACE", PathFlags::TRACE.bits())?;
