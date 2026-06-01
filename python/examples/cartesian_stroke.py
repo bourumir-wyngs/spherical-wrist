@@ -61,9 +61,16 @@ def main() -> None:
         # configurations to keep the example reproducible.
         return robot.forward(joints)
 
-    def tcp_pose(x: float, y: float, z: float) -> RigidTransform:
+    def tcp_pose(
+        x: float,
+        y: float,
+        z: float,
+        zz: float,
+        yy: float = 0.0,
+        xx: float = 0.0,
+    ) -> RigidTransform:
         return RigidTransform.from_components(
-            rotation=Rotation.from_euler("z", -90.0, degrees=True),
+            rotation=Rotation.from_euler("zyx", [zz, yy, xx], degrees=True),
             translation=[x, y, z],
         )
 
@@ -72,28 +79,31 @@ def main() -> None:
     # The planner will safely move from "start" to "land"
     # "land" is normally where the tool is activated so there is a special flag
     # "landing" is present in movement between landing pose and stroke (tool warming up)
-    land = tcp_pose(1.50, 0.0, 1.6)
+    land = tcp_pose(1.50, 0.0, 1.6, 0)
+    yy = 0.0
+    xx = 0.0
+    zz = 90
     steps = [
         # The actual stroke. This path is rectangle box.
-        tcp_pose(1.50, 0.0, 1.7),
-        tcp_pose(1.00, 0.0, 1.7),
-        tcp_pose(1.00, 1.15, 1.7),
-        tcp_pose(1.50, 1.15, 1.7),
-        tcp_pose(1.50, 0.0, 1.7),
+        tcp_pose(1.50, 0.0, 1.7, -zz, yy, xx),
+        tcp_pose(1.00, 0.0, 1.7, -zz, yy, xx),
+        tcp_pose(1.00, 1.15, 1.7, -zz, yy, xx),
+        tcp_pose(1.50, 1.15, 1.7, -zz, yy, xx),
+        tcp_pose(1.50, 0.0, 1.7, -zz, yy, xx),
 
-        tcp_pose(1.50, 0.0, 2.0),
-        tcp_pose(1.00, 0.0, 2.0),
-        tcp_pose(1.00, 1.15, 2.0),
-        tcp_pose(1.50, 1.15, 2.0),
-        tcp_pose(1.50, 0.0, 2.0),
+        tcp_pose(1.50, 0.0, 2.0, zz, -yy, -xx),
+        tcp_pose(1.00, 0.0, 2.0, zz, -yy, -xx),
+        tcp_pose(1.00, 1.15, 2.0, zz, -yy, -xx),
+        tcp_pose(1.50, 1.15, 2.0, zz, -yy, -xx),
+        tcp_pose(1.50, 0.0, 2.0, zz, -yy, -xx),
     ]
     # "Post last" position with special flag to deactivate the tool
     park = land
 
     planner = CartesianPlanner(
-        check_step_m=0.05,
+        check_step_m=0.07,
         check_step_rad=4.0,
-        max_transition_cost=3.0,
+        max_transition_cost=16,
         linear_recursion_depth=8,
         rrt=RRTPlanner(
             step_size_joint_space=2.0,

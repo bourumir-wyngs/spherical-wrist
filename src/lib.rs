@@ -4,8 +4,9 @@ use parry3d::shape::TriMesh;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
-    AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian, DEFAULT_TRANSITION_COSTS,
-    MoveKind as RsMoveKind, PathFlags,
+    AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian,
+    DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES, DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind,
+    PathFlags,
 };
 use rs_opw_kinematics::collisions::{
     BaseBody, CheckMode, CollisionBody as RsCollisionBody, NEVER_COLLIDES, RobotBody,
@@ -1116,6 +1117,7 @@ impl CartesianPlanner {
             linear_recursion_depth: self.linear_recursion_depth,
             rrt: self.rrt.to_rs_rrt(),
             allow_reconfigure: self.allow_reconfigure,
+            max_reconfiguration_prefix_candidates: DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
             include_linear_interpolation: self.include_linear_interpolation,
             debug: self.debug,
         };
