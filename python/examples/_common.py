@@ -31,10 +31,9 @@ from spherical_wrist import Joints
 
 
 DEFAULT_TCP_BOX: TcpBox = ((-2.0, 2.0), (-2.0, 2.0), (1.0, 2.0))
-WORKSPACE = Path(__file__).resolve().parents[3]
-RS_OPW_KINEMATICS = WORKSPACE / "rs-opw-kinematics"
-DATA = RS_OPW_KINEMATICS / "src" / "tests" / "data"
-RX160_MESHES = DATA / "staubli" / "rx160"
+EXAMPLES = Path(__file__).resolve().parent
+ASSETS = EXAMPLES / "assets"
+RX160_MESHES = ASSETS / "staubli" / "rx160"
 
 
 def irb2400_10() -> KinematicModel:
@@ -128,11 +127,11 @@ def create_rx160_robot(
     Build the shaped RX160 robot used by visualization and path planning examples.
 
     This mirrors the Rust examples: six link meshes, base mesh, tool mesh, and
-    four static environment objects are all loaded from rs-opw-kinematics test
-    data. The meshes are Apache/BSD-compatible test assets from the upstream
-    repository.
+    four static environment objects are all loaded from the assets directory
+    next to these examples. The meshes are Apache/BSD-compatible test assets
+    from the upstream repository.
     """
-    monolith = Mesh.from_path(DATA / "object.stl")
+    monolith = Mesh.from_path(ASSETS / "object.stl")
 
     # Static environment meshes use their Mesh pose as a global transform.
     environment = [
@@ -179,7 +178,7 @@ def create_rx160_robot(
         base=translation(0.4, 0.7, 0.0),
         base_mesh=Mesh.from_path(RX160_MESHES / "base_link.stl"),
         tool=translation(0.0, 0.0, 0.5),
-        tool_mesh=Mesh.from_path(DATA / flag_mesh),
+        tool_mesh=Mesh.from_path(ASSETS / flag_mesh),
         environment=environment,
         safety=safety,
     )
