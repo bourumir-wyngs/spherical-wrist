@@ -56,7 +56,15 @@ checks.
 
 ## Planner Fails
 
-Check the start and goal first:
+- Use the visualization tool first to check if the robot shape is properly interpreted.
+- Use robot joint control sliders to see if all robot joints are moving in the expected way.
+- Collision detector is built-in into visualizer and highlights colliding joints in red.
+  Check if there are no permanent collisions (joints touching one another by mechanical design 
+  must be excluded from collision checks)
+- If this does not help, try moving robot slowly by hand with sliders and check if 
+  all poses of the planned path are physically possible within defined constraints.
+
+You can also check critical poses from Python:
 
 ```python
 print(robot.collides(start))
@@ -66,7 +74,7 @@ print(robot.collides(goal))
 For Cartesian planning, also check the landing, stroke, and parking poses by
 calling `robot.inverse(...)`.
 
-Then tune planner settings:
+If the pose looks possible but the planner does not find it, tune planner settings:
 
 - increase `max_try`
 - reduce joint step size

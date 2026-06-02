@@ -105,8 +105,9 @@ Use Cartesian planning if:
 Planning methods raise `ValueError` when no path can be found with the current
 settings. Common fixes are:
 
+- use robot visualization tool to check if the path is physically possible
 - increase `max_try`
 - reduce `step_size_joint_space`
 - relax `max_transition_cost`
-- allow reconfiguration in `CartesianPlanner`
+- allow reconfiguration in `CartesianPlanner` (may be acceptable for tasks like surface washing)
 - inspect collision details for the start, goal, land, and stroke poses

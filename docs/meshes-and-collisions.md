@@ -15,7 +15,7 @@ fixture = Mesh.from_path("fixture.stl")
 scaled = Mesh.from_path("part.obj", scale=0.001)
 ```
 
-For small procedural meshes, use arrays:
+For small procedural meshes, use arrays. This example creates a pyramid (tetrahedron):
 
 ```python
 mesh = Mesh.from_arrays(
@@ -109,8 +109,7 @@ if robot.collides(joints):
     print(robot.collision_details(joints))
 ```
 
-Collision pair indices use constants such as `J1`, `J2`, `J_TOOL`, `J_BASE`,
-and `ENV_START_IDX`.
+Collision pair indices use constants such as `J1`, `J2`, `J_TOOL` and `J_BASE`.
 
 The helper `collision_name` in [python/examples/_common.py](../python/examples/_common.py)
 shows how to turn those indices into readable names.

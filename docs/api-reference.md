@@ -43,12 +43,11 @@ Python wrapper docstrings for exact signatures.
 
 ## Constants
 
-Joint and collision object indices:
+Joint and collision object angle indices in a pose array:
 
 - `J1`, `J2`, `J3`, `J4`, `J5`, `J6`
 - `J_TOOL`
 - `J_BASE`
-- `ENV_START_IDX`
 
 Constraint sorting:
 
