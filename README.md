@@ -3,8 +3,19 @@
 `spherical-wrist` is a Python package for six-axis industrial robot
 kinematics, collision checking, path planning, and visualization.
 
-It wraps the Rust `rs-opw-kinematics` solver, but the public API is Python
-first: joint positions are tuples or arrays, poses are SciPy
+`spherical-wrist` is backed by the `rs-opw-kinematics` crate. It wraps the 
+same Rust library as`py-opw-kinematics`, but exposes a broader API surface: 
+`py-opw-kinematics` intentionally publishes only a selected subset of 
+`rs-opw-kinematics`.
+
+The goal of `spherical-wrist` is to make the full potential of
+`rs-opw-kinematics` available from Python, including collision-free path and
+trajectory planning. Collision checking is separate from inverse kinematics,
+but collision-aware stroke planning needs both capabilities close together:
+available from multiple threads and without repeated Python-Rust boundary
+crossing overhead.
+
+The public API is Python first: joint positions are tuples or arrays, poses are SciPy
 `RigidTransform` objects, and examples are plain Python scripts.
 
 ## Install
@@ -110,14 +121,22 @@ See [Examples](python/examples/README.md) for the full example catalog.
 - [Troubleshooting](docs/troubleshooting.md)
 - [Development With Maturin](docs/development-maturin.md)
 
-## Short Mental Model
+## Use cases
 
-Use `Robot` when you only need kinematics.
+Use `Robot` when you only need kinematics. It provides forward 
+kinematics for all roboto joints, not only the tool-tip pose.
 
-Use `KinematicsWithShape` when you need collision checks, path planning, or
-visualization with robot geometry.
+Use `KinematicsWithShape` when robot geometry matters: collision checks,
+distance queries, path planning, or visualization.
 
-Use `RRTPlanner` when you already have start and goal joint configurations.
+Use `RRTPlanner` when you want to move the robot between the two known poses. 
+It plans a collision-free joint-space path between them and can
+enforce a configurable safety distance around geometry. That margin matters in
+real cells: calibration error can otherwise turn a mathematically valid
+near-contact path into brief surface contact, resulting in scratches, or robot damage.
 
 Use `CartesianPlanner` when the tool center point must follow a Cartesian
-stroke made of poses.
+stroke defined by poses. It can start from an arbitrary robot pose, plan the landing into 
+best suitable joint configuration for the stroke when alternatives exist, and plan a
+collision-free path that follows the Cartesian line. Simple joint interpolation
+does not provide that guarantee.
