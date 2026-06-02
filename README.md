@@ -3,8 +3,8 @@
 `spherical-wrist` is a Python package for six-axis industrial robot
 kinematics, collision checking, path planning, and visualization.
 
-`spherical-wrist` is backed by the `rs-opw-kinematics` crate. It wraps the 
-same Rust library as`py-opw-kinematics`, but exposes a broader API surface: 
+`spherical-wrist` is backed by the [rs-opw-kinematics](https://github.com/bourumir-wyngs/rs-opw-kinematics) crate. It wraps the 
+same Rust library as [py-opw-kinematics](https://github.com/CEAD-group/py-opw-kinematics), but exposes a broader API surface: 
 `py-opw-kinematics` intentionally publishes only a selected subset of 
 `rs-opw-kinematics`.
 
