@@ -28,6 +28,7 @@ from ._internal import CartesianPlanner as _CartesianPlannerInternal
 from ._internal import DEFAULT_MAX_SOLUTIONS_AWAIT
 from ._internal import DEFAULT_TRANSITION_COSTS
 from ._internal import ENV_START_IDX
+from ._internal import Frame as _FrameInternal
 from ._internal import J1
 from ._internal import J2
 from ._internal import J3
@@ -36,6 +37,7 @@ from ._internal import J5
 from ._internal import J6
 from ._internal import J_BASE
 from ._internal import J_TOOL
+from ._internal import Jacobian as _JacobianInternal
 from ._internal import KinematicsWithShape as _KinematicsWithShapeInternal
 from ._internal import KinematicModel
 from ._internal import Mesh as _MeshInternal
@@ -187,6 +189,88 @@ class Mesh:
         return self._mesh.__repr__()
 
 
+class Frame:
+    """
+    Working frame computed from tie points.
+
+    Unlike ``base`` and ``tool`` transforms, a frame may include uniform scale.
+    Use :meth:`from_tie` to compute the transform from three original trajectory
+    tie points and three required target tie points.
+    """
+
+    def __init__(self) -> None:
+        raise TypeError("use Frame.from_tie(original_tie_points, target_tie_points)")
+
+    @classmethod
+    def from_tie(
+        cls,
+        original_tie_points: ArrayLike,
+        target_tie_points: ArrayLike,
+    ) -> Frame:
+        """
+        Construct a frame from three original and three target tie points.
+
+        The target tie points may be translated, rotated, and uniformly scaled
+        relative to the original tie points. Non-uniform scale and shear are
+        rejected.
+        """
+        original = _tie_points(original_tie_points, "original_tie_points")
+        target = _tie_points(target_tie_points, "target_tie_points")
+        return cls._from_internal(_FrameInternal.from_tie(original, target))
+
+    @classmethod
+    def _from_internal(cls, frame: _FrameInternal) -> Frame:
+        instance = cls.__new__(cls)
+        instance._frame = frame
+        return instance
+
+    @property
+    def scale(self) -> float:
+        """Uniform frame scale."""
+        return float(self._frame.scale)
+
+    @property
+    def translation(self) -> np.ndarray:
+        """Frame translation as ``[x, y, z]``."""
+        return np.asarray(self._frame.translation, dtype=np.float64)
+
+    def as_matrix(self) -> np.ndarray:
+        """
+        Return the 4x4 similarity matrix.
+
+        The upper-left 3x3 block is ``scale * rotation``. This matrix is valid
+        for ``Robot(frame=...)`` but is intentionally not a rigid transform.
+        """
+        return np.asarray(self._frame.as_matrix(), dtype=np.float64)
+
+    def transform_pose(self, pose: RigidTransform) -> RigidTransform:
+        """Apply this frame to a rigid pose."""
+        frame_matrix = self.as_matrix()
+        pose_matrix = pose.as_matrix()
+        scaled_rotation = frame_matrix[:3, :3]
+        rotation = scaled_rotation / self.scale
+
+        result = np.eye(4)
+        result[:3, :3] = rotation @ pose_matrix[:3, :3]
+        result[:3, 3] = scaled_rotation @ pose_matrix[:3, 3] + frame_matrix[:3, 3]
+        return RigidTransform.from_matrix(result)
+
+    def inverse_transform_pose(self, pose: RigidTransform) -> RigidTransform:
+        """Apply the inverse of this frame to a rigid pose."""
+        frame_matrix = self.as_matrix()
+        pose_matrix = pose.as_matrix()
+        scaled_rotation = frame_matrix[:3, :3]
+        rotation = scaled_rotation / self.scale
+
+        result = np.eye(4)
+        result[:3, :3] = rotation.T @ pose_matrix[:3, :3]
+        result[:3, 3] = rotation.T @ (pose_matrix[:3, 3] - frame_matrix[:3, 3]) / self.scale
+        return RigidTransform.from_matrix(result)
+
+    def __repr__(self) -> str:
+        return self._frame.__repr__()
+
+
 class Robot:
     """Robot kinematics with SciPy RigidTransform integration."""
 
@@ -196,7 +280,7 @@ class Robot:
         degrees: bool = True,
         tool: Optional[RigidTransform] = None,
         base: Optional[RigidTransform] = None,
-        frame: Optional[RigidTransform] = None,
+        frame: Optional[RigidTransform | Frame] = None,
         parallelogram: Optional[Parallelogram] = None,
         constraints: Optional[Constraints] = None,
     ) -> None:
@@ -207,7 +291,9 @@ class Robot:
         :param degrees: Whether joint angles are in degrees.
         :param tool: Optional flange-to-TCP transform.
         :param base: Optional world-to-robot-base transform.
-        :param frame: Optional working-frame transform.
+        :param frame: Optional working-frame transform. A ``Frame`` created by
+            ``Frame.from_tie`` may include uniform scale; a ``RigidTransform``
+            frame is treated as scale 1.
         :param parallelogram: Optional parallelogram coupling configuration.
         :param constraints: Optional joint constraints used by inverse kinematics.
         """
@@ -216,7 +302,7 @@ class Robot:
             degrees,
             None if tool is None else tool.as_matrix(),
             None if base is None else base.as_matrix(),
-            None if frame is None else frame.as_matrix(),
+            _frame_matrix(frame),
             parallelogram,
             constraints,
         )
@@ -565,6 +651,137 @@ class KinematicsWithShape:
         return VisualizationHandle._from_internal(handle)
 
 
+class Jacobian:
+    """
+    Numerical 6x6 Jacobian for a robot at one joint configuration.
+
+    Matrix/twist vectors use row order ``[vx, vy, vz, wx, wy, wz]``. Linear
+    velocity is meters per second and angular velocity is radians per second.
+    By default, Jacobian columns, returned joint rates, and generalized efforts
+    use the robot's configured joint unit; pass ``radians=True`` to use raw
+    radian joint coordinates.
+    """
+
+    def __init__(
+        self,
+        robot: Robot | KinematicsWithShape,
+        joints: Joints,
+        epsilon: float = 1e-6,
+        ee_transform: Optional[RigidTransform] = None,
+        *,
+        tool: Optional[RigidTransform] = None,
+    ) -> None:
+        """
+        Build a Jacobian from a robot and joint state.
+
+        :param robot: A ``Robot`` or ``KinematicsWithShape`` instance.
+        :param joints: Joint angles in the robot's configured joint unit.
+        :param epsilon: Numerical differentiation step in radians.
+        :param ee_transform: Optional per-call flange-to-TCP transform for
+            plain ``Robot``. This is a compatibility alias for ``tool``.
+        :param tool: Optional per-call flange-to-TCP transform for plain
+            ``Robot``.
+        """
+        if isinstance(robot, Robot):
+            tool_transform = _resolve_tool(tool=tool, ee_transform=ee_transform)
+            tool_matrix = None if tool_transform is None else tool_transform.as_matrix()
+            self._jacobian = _JacobianInternal(
+                robot._robot,
+                joints,
+                epsilon,
+                tool_matrix,
+            )
+            return
+
+        if isinstance(robot, KinematicsWithShape):
+            if tool is not None or ee_transform is not None:
+                raise ValueError("per-call tool/ee_transform is only supported for Robot")
+            self._jacobian = _JacobianInternal.from_shape(robot._robot, joints, epsilon)
+            return
+
+        raise TypeError("robot must be Robot or KinematicsWithShape")
+
+    def matrix(self, radians: bool = False) -> np.ndarray:
+        """
+        Return the 6x6 Jacobian matrix.
+
+        With a degree-based robot and default ``radians=False``, multiplying
+        this matrix by joint velocities in degrees/second yields the TCP twist.
+        """
+        return np.asarray(self._jacobian.matrix(radians), dtype=np.float64)
+
+    def velocities(
+        self,
+        linear_velocity: ArrayLike,
+        angular_velocity: ArrayLike = (0.0, 0.0, 0.0),
+        *,
+        radians: bool = False,
+    ) -> Joints:
+        """Return joint rates that produce the requested TCP twist."""
+        rates = self._jacobian.velocities(
+            _vector3(linear_velocity, "linear_velocity"),
+            _vector3(angular_velocity, "angular_velocity"),
+            radians,
+        )
+        return cast(Joints, tuple(rates))
+
+    def velocities_fixed(
+        self,
+        vx: float,
+        vy: float,
+        vz: float,
+        *,
+        radians: bool = False,
+    ) -> Joints:
+        """Return joint rates for a purely linear TCP velocity."""
+        rates = self._jacobian.velocities_fixed(vx, vy, vz, radians)
+        return cast(Joints, tuple(rates))
+
+    def velocities_from_vector(
+        self,
+        twist: ArrayLike,
+        *,
+        radians: bool = False,
+    ) -> Joints:
+        """Return joint rates for a ``[vx, vy, vz, wx, wy, wz]`` twist vector."""
+        rates = self._jacobian.velocities_from_vector(
+            _vector6(twist, "twist"),
+            radians,
+        )
+        return cast(Joints, tuple(rates))
+
+    def torques(
+        self,
+        force: ArrayLike,
+        torque: ArrayLike = (0.0, 0.0, 0.0),
+        *,
+        radians: bool = False,
+    ) -> Joints:
+        """Return generalized joint efforts for a force/torque wrench."""
+        efforts = self._jacobian.torques(
+            _vector3(force, "force"),
+            _vector3(torque, "torque"),
+            radians,
+        )
+        return cast(Joints, tuple(efforts))
+
+    def torques_from_vector(
+        self,
+        wrench: ArrayLike,
+        *,
+        radians: bool = False,
+    ) -> Joints:
+        """Return generalized joint efforts for a ``[fx, fy, fz, tx, ty, tz]`` wrench."""
+        efforts = self._jacobian.torques_from_vector(
+            _vector6(wrench, "wrench"),
+            radians,
+        )
+        return cast(Joints, tuple(efforts))
+
+    def __repr__(self) -> str:
+        return self._jacobian.__repr__()
+
+
 class VisualizationHandle:
     """Control handle for a non-blocking visualization window."""
 
@@ -867,6 +1084,29 @@ def visualize_robot_with_safety(
     )
 
 
+def _as_vector(values: ArrayLike, length: int, name: str) -> tuple[float, ...]:
+    array = np.asarray(values, dtype=np.float64)
+    if array.shape != (length,):
+        raise ValueError(f"{name} must have shape ({length},)")
+    if not np.isfinite(array).all():
+        raise ValueError(f"{name} values must be finite")
+    return tuple(float(value) for value in array.tolist())
+
+
+def _vector3(values: ArrayLike, name: str) -> tuple[float, float, float]:
+    return cast(tuple[float, float, float], _as_vector(values, 3, name))
+
+
+def _vector6(
+    values: ArrayLike,
+    name: str,
+) -> tuple[float, float, float, float, float, float]:
+    return cast(
+        tuple[float, float, float, float, float, float],
+        _as_vector(values, 6, name),
+    )
+
+
 def _resolve_tool(
     *,
     tool: Optional[RigidTransform],
@@ -879,6 +1119,36 @@ def _resolve_tool(
 
 def _mesh_internal(mesh: Mesh) -> _MeshInternal:
     return mesh._mesh
+
+
+def _frame_matrix(frame: Optional[RigidTransform | Frame]) -> Optional[np.ndarray]:
+    if frame is None:
+        return None
+    if isinstance(frame, Frame):
+        return frame.as_matrix()
+    if isinstance(frame, RigidTransform):
+        return frame.as_matrix()
+    raise TypeError("frame must be a scipy RigidTransform or spherical_wrist.Frame")
+
+
+def _tie_points(
+    values: ArrayLike,
+    name: str,
+) -> tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]:
+    points = np.asarray(values, dtype=np.float64)
+    if points.shape != (3, 3):
+        raise ValueError(f"{name} must have shape (3, 3)")
+    if not np.isfinite(points).all():
+        raise ValueError(f"{name} values must be finite")
+    rows = tuple(tuple(float(value) for value in row) for row in points)
+    return cast(
+        tuple[
+            tuple[float, float, float],
+            tuple[float, float, float],
+            tuple[float, float, float],
+        ],
+        rows,
+    )
 
 
 def _path_step_joints(step: PathStep) -> Joints:
@@ -912,6 +1182,7 @@ __all__ = [
     "DEFAULT_MAX_SOLUTIONS_AWAIT",
     "DEFAULT_TRANSITION_COSTS",
     "ENV_START_IDX",
+    "Frame",
     "J1",
     "J2",
     "J3",
@@ -920,6 +1191,7 @@ __all__ = [
     "J6",
     "J_BASE",
     "J_TOOL",
+    "Jacobian",
     "Joints",
     "KinematicsWithShape",
     "KinematicModel",

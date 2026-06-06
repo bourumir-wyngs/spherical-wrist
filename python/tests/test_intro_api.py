@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from spherical_wrist import KinematicModel, Mesh, Parallelogram, Robot
+from spherical_wrist import Frame, KinematicModel, Mesh, Parallelogram, Robot
 from scipy.spatial.transform import RigidTransform, Rotation
 import numpy as np
 import pytest
@@ -104,7 +104,7 @@ def test_constructor_base_tool_frame_composition_order() -> None:
     composite_robot = Robot(model, degrees=True, base=base, tool=tool, frame=frame)
 
     raw_pose = robot.forward(joints)
-    expected = base.as_matrix() @ raw_pose.as_matrix() @ tool.as_matrix() @ frame.as_matrix()
+    expected = frame.as_matrix() @ base.as_matrix() @ raw_pose.as_matrix() @ tool.as_matrix()
     actual = composite_robot.forward(joints).as_matrix()
 
     assert np.allclose(actual, expected, atol=1e-10)
@@ -132,6 +132,64 @@ def test_ee_transform_alias_uses_constructor_tool_order_with_frame() -> None:
         call_tool.forward(joints, ee_transform=_tool()).as_matrix(),
         atol=1e-10,
     )
+
+
+def test_frame_from_tie_supports_uniform_scale_in_robot_frame() -> None:
+    model = _model()
+    joints = (10, 20, -70, 30, 20, 10)
+    original_tie_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [100.0, 0.0, 0.0],
+            [0.0, 100.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    scale = 1.05
+    rotation = Rotation.from_euler("z", 17.0, degrees=True)
+    translation = np.array([10.0, 20.0, 30.0])
+    target_tie_points = translation + rotation.apply(original_tie_points * scale)
+    frame = Frame.from_tie(original_tie_points, target_tie_points)
+
+    plain_robot = Robot(model, degrees=True)
+    framed_robot = Robot(model, degrees=True, frame=frame)
+    plain_pose = plain_robot.forward(joints)
+    expected_pose = frame.transform_pose(plain_pose)
+    actual_pose = framed_robot.forward(joints)
+
+    assert np.isclose(frame.scale, scale)
+    assert np.allclose(frame.translation, translation)
+    assert np.allclose(actual_pose.as_matrix(), expected_pose.as_matrix(), atol=1e-9)
+    assert np.allclose(
+        frame.inverse_transform_pose(actual_pose).as_matrix(),
+        plain_pose.as_matrix(),
+        atol=1e-9,
+    )
+
+    solutions = framed_robot.inverse(actual_pose, current_joints=joints)
+    assert any(np.allclose(solution, joints, atol=1e-6) for solution in solutions)
+
+
+def test_frame_from_tie_rejects_non_uniform_scale() -> None:
+    original_tie_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    target_tie_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+
+    with pytest.raises(ValueError, match="similarity"):
+        Frame.from_tie(original_tie_points, target_tie_points)
 
 
 def test_tool_and_ee_transform_alias_are_mutually_exclusive() -> None:

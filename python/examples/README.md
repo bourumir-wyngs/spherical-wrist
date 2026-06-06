@@ -45,13 +45,18 @@ visualization window.
 : Shows persistent base and tool transforms.
 
 `frame.py`
-: Shows how a working frame changes the resulting motion.
+: Computes a transport frame, including uniform scale, from three tie point
+pairs and retargets a canonical trajectory.
 
 `parallelogram.py`
 : Shows parallelogram coupling configuration.
 
 `constraints.py`
 : Shows joint constraints, constraint-centered solving, and sorting behavior.
+
+`jacobian.py`
+: Shows the TCP Jacobian matrix, joint-rate solving, and wrench-to-effort
+mapping.
 
 `_common.py`
 : Shared helper functions and the reference `create_rx160_robot` setup used by

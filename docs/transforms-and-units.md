@@ -30,7 +30,8 @@ model and keep it consistent:
 
 - model parameters
 - mesh scale
-- base/tool/frame translations
+- base/tool translations
+- frame translations and frame scale
 - target pose translations
 - safety distances
 
@@ -70,24 +71,45 @@ solutions = robot.inverse(pose, tool=tool_transform)
 
 ## Base And Frame
 
-`base` places the robot in the world. `frame` represents an additional working
-frame transform.
+`base` places the robot in the world. `frame` retargets the final TCP pose into
+a measured working frame. Base and tool transforms must be rigid. A frame
+created with `Frame.from_tie(...)` may include uniform scale.
 
 ```python
+from spherical_wrist import Frame, Robot
+
+work_frame = Frame.from_tie(
+    original_tie_points=[
+        [0.10, 0.00, 0.20],
+        [0.20, 0.00, 0.20],
+        [0.10, 0.10, 0.20],
+    ],
+    target_tie_points=[
+        [0.12, 0.02, 0.21],
+        [0.222, 0.02, 0.21],
+        [0.12, 0.122, 0.21],
+    ],
+)
+
 robot = Robot(
     model,
     degrees=True,
     base=base_transform,
     tool=tool_transform,
-    frame=work_frame_transform,
+    frame=work_frame,
 )
 ```
 
-Transforms are composed as:
+For `Robot.forward`, transforms are applied as:
 
 ```text
-base * robot.forward(joints) * tool * frame
+frame.transform_pose(base * robot.forward(joints) * tool)
 ```
+
+If `frame` is supplied as a SciPy `RigidTransform`, it is treated as a frame
+with scale 1. If it is supplied as `Frame.from_tie(...)`, the scale changes TCP
+translations before IK/Jacobian calculations. TCP orientation is rotated by the
+frame but is not scaled.
 
 ## Joint Poses
 

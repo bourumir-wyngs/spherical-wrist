@@ -17,6 +17,10 @@ Python wrapper docstrings for exact signatures.
 `Robot`
 : Kinematics-only robot.
 
+`Frame`
+: Working-frame retargeting transform. Build with `Frame.from_tie(...)` when
+  the measured target tie points may include uniform scale.
+
 `KinematicsWithShape`
 : Robot with six joint meshes and optional collision geometry.
 
@@ -40,6 +44,9 @@ Python wrapper docstrings for exact signatures.
 
 `VisualizationHandle`
 : Non-blocking visualization window control handle.
+
+`Jacobian`
+: Numerical 6x6 TCP Jacobian for one robot joint configuration.
 
 ## Constants
 
@@ -107,6 +114,32 @@ Main methods:
 - `forward_with_joint_poses(joints)`
 - `kinematic_singularity(joints)`
 
+`frame` accepts either a SciPy `RigidTransform` or `Frame.from_tie(...)`.
+Base and tool transforms are rigid. A `Frame` may include uniform scale and is
+applied to the final TCP pose.
+
+## `Frame`
+
+```python
+Frame.from_tie(
+    original_tie_points,
+    target_tie_points,
+)
+```
+
+`original_tie_points` and `target_tie_points` must each have shape `(3, 3)`.
+Each row is one `[x, y, z]` tie point. The target points may be translated,
+rotated, and uniformly scaled relative to the original points. Non-uniform
+scale and shear are rejected.
+
+Main properties and methods:
+
+- `scale`
+- `translation`
+- `as_matrix()`
+- `transform_pose(pose)`
+- `inverse_transform_pose(pose)`
+
 ## `KinematicsWithShape`
 
 ```python
@@ -170,3 +203,20 @@ CartesianPlanner(
 ```
 
 See [Path Planning](path-planning.md) for how to use them.
+
+## `Jacobian`
+
+```python
+Jacobian(robot, joints, epsilon=1e-6, tool=None, ee_transform=None)
+```
+
+Main methods:
+
+- `matrix(radians=False)`
+- `velocities(linear_velocity, angular_velocity=(0.0, 0.0, 0.0), radians=False)`
+- `velocities_fixed(vx, vy, vz, radians=False)`
+- `velocities_from_vector(twist, radians=False)`
+- `torques(force, torque=(0.0, 0.0, 0.0), radians=False)`
+- `torques_from_vector(wrench, radians=False)`
+
+See [Jacobian](jacobian.md) for row order, units, and examples.

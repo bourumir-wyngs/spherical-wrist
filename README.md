@@ -114,6 +114,7 @@ See [Examples](python/examples/README.md) for the full example catalog.
 - [Core Concepts](docs/concepts.md)
 - [Robot Models](docs/robots.md)
 - [Transforms And Units](docs/transforms-and-units.md)
+- [Jacobian](docs/jacobian.md)
 - [Meshes And Collisions](docs/meshes-and-collisions.md)
 - [Path Planning](docs/path-planning.md)
 - [Visualization](docs/visualization.md)

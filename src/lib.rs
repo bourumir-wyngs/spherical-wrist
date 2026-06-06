@@ -14,7 +14,8 @@ use rs_opw_kinematics::collisions::{
     SafetyDistances as RsSafetyDistances, TOUCH_ONLY, transform_mesh,
 };
 use rs_opw_kinematics::constraints::{BY_CONSTRAINS, BY_PREV, Constraints as RsConstraints};
-use rs_opw_kinematics::frame::Frame;
+use rs_opw_kinematics::frame::{Frame as RsFrame, FrameTransform as RsFrameTransform};
+use rs_opw_kinematics::jacobian::Jacobian as RsJacobian;
 use rs_opw_kinematics::kinematic_traits::{
     CONSTRAINT_CENTERED, ENV_START_IDX, J_BASE, J_TOOL, J1, J2, J3, J4, J5, J6, Joints, Kinematics,
     Pose, Singularity,
@@ -23,7 +24,7 @@ use rs_opw_kinematics::kinematics_impl::OPWKinematics;
 use rs_opw_kinematics::kinematics_with_shape::KinematicsWithShape as RsKinematicsWithShape;
 use rs_opw_kinematics::parallelogram::Parallelogram as RsParallelogram;
 use rs_opw_kinematics::parameters::opw_kinematics::Parameters;
-use rs_opw_kinematics::pose::Pose32;
+use rs_opw_kinematics::pose::{Pose32, Twist, Wrench};
 use rs_opw_kinematics::rrt::RRTPlanner as RsRRTPlanner;
 use rs_opw_kinematics::tool::{Base, Tool};
 use rs_opw_kinematics::visualization::{
@@ -35,6 +36,8 @@ use rs_read_trimesh::load_trimesh;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+
+const RADIANS_PER_DEGREE: f64 = std::f64::consts::PI / 180.0;
 
 #[pyclass(frozen)]
 #[derive(Clone)]
@@ -225,11 +228,13 @@ impl Constraints {
     }
 
     #[pyo3(signature = (radians=false))]
+    #[allow(clippy::wrong_self_convention)]
     fn from_limits(&self, radians: bool) -> [f64; 6] {
         angles_from_radians(self.constraints.from, radians)
     }
 
     #[pyo3(signature = (radians=false))]
+    #[allow(clippy::wrong_self_convention)]
     fn to_limits(&self, radians: bool) -> [f64; 6] {
         angles_from_radians(self.constraints.to, radians)
     }
@@ -273,6 +278,60 @@ impl Constraints {
 impl Constraints {
     fn to_rs_constraints(self) -> RsConstraints {
         self.constraints
+    }
+}
+
+#[pyclass(frozen)]
+#[derive(Clone, Copy)]
+struct Frame {
+    frame: RsFrameTransform,
+}
+
+#[pymethods]
+impl Frame {
+    /// Construct a working frame from three original and three target tie points.
+    ///
+    /// The target tie points may be translated, rotated, and uniformly scaled
+    /// relative to the original tie points. Non-uniform scale and shear are rejected.
+    #[staticmethod]
+    fn from_tie(original: [[f64; 3]; 3], target: [[f64; 3]; 3]) -> PyResult<Self> {
+        let original = tie_points_to_dvec3(original, "original_tie_points")?;
+        let target = tie_points_to_dvec3(target, "target_tie_points")?;
+        let frame = RsFrame::from_tie(original, target).map_err(|error| {
+            PyValueError::new_err(format!(
+                "could not construct frame from tie points: {error}"
+            ))
+        })?;
+
+        Ok(Self { frame })
+    }
+
+    #[getter]
+    fn scale(&self) -> f64 {
+        self.frame.scale
+    }
+
+    #[getter]
+    fn translation(&self) -> [f64; 3] {
+        [
+            self.frame.translation.x,
+            self.frame.translation.y,
+            self.frame.translation.z,
+        ]
+    }
+
+    fn as_matrix(&self) -> [[f64; 4]; 4] {
+        frame_transform_to_matrix(self.frame)
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "Frame(translation=({}, {}, {}), scale={})",
+            self.frame.translation.x,
+            self.frame.translation.y,
+            self.frame.translation.z,
+            self.frame.scale
+        )
     }
 }
 
@@ -804,10 +863,10 @@ impl KinematicsWithShape {
     fn kinematic_singularity(&self, joints: [f64; 6]) -> PyResult<Option<String>> {
         let joints = joints_to_internal(joints, self.degrees)?;
 
-        Ok(match self.robot.kinematic_singularity(&joints) {
-            Some(Singularity::A) => Some("A".to_string()),
-            None => None,
-        })
+        Ok(self
+            .robot
+            .kinematic_singularity(&joints)
+            .map(|Singularity::A| "A".to_string()))
     }
 
     #[pyo3(signature = (joints))]
@@ -847,14 +906,7 @@ impl KinematicsWithShape {
     }
 
     #[pyo3(signature = (joints))]
-    fn positioned_robot(
-        &self,
-        joints: [f64; 6],
-    ) -> PyResult<(
-        Vec<[[f64; 4]; 4]>,
-        Option<[[f64; 4]; 4]>,
-        Vec<[[f64; 4]; 4]>,
-    )> {
+    fn positioned_robot(&self, joints: [f64; 6]) -> PyResult<PositionedRobotMatrices> {
         let joints = joints_to_internal(joints, self.degrees)?;
         let positioned = self.robot.positioned_robot(&joints);
         let joints = positioned
@@ -1326,7 +1378,7 @@ struct Robot {
     linear_axis: Option<LinearAxisConfig>,
     tool: Option<Pose>,
     base: Option<Pose>,
-    frame: Option<Pose>,
+    frame: Option<RsFrameTransform>,
 }
 
 #[derive(Clone, Copy)]
@@ -1334,6 +1386,12 @@ struct LinearAxisConfig {
     axis: usize,
     base: Pose,
 }
+
+type PositionedRobotMatrices = (
+    Vec<[[f64; 4]; 4]>,
+    Option<[[f64; 4]; 4]>,
+    Vec<[[f64; 4]; 4]>,
+);
 
 #[pymethods]
 impl Robot {
@@ -1350,6 +1408,7 @@ impl Robot {
         linear_axis_axis=None,
         linear_axis_base=None,
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         kinematic_model: KinematicModel,
         degrees: bool,
@@ -1390,7 +1449,7 @@ impl Robot {
             })?,
             tool: transpose_option(tool, matrix_to_pose)?,
             base: transpose_option(base, matrix_to_pose)?,
-            frame: transpose_option(frame, matrix_to_pose)?,
+            frame: transpose_option(frame, matrix_to_frame_transform)?,
         })
     }
 
@@ -1558,10 +1617,9 @@ impl Robot {
         let joints = joints_to_internal(joints, self.degrees)?;
         let robot = self.build_robot(None)?;
 
-        Ok(match robot.kinematic_singularity(&joints) {
-            Some(Singularity::A) => Some("A".to_string()),
-            None => None,
-        })
+        Ok(robot
+            .kinematic_singularity(&joints)
+            .map(|Singularity::A| "A".to_string()))
     }
 }
 
@@ -1598,7 +1656,7 @@ impl Robot {
         }
 
         if let Some(frame) = self.frame {
-            robot = Arc::new(Frame { robot, frame });
+            robot = Arc::new(RsFrame { robot, frame });
         }
 
         Ok(robot)
@@ -1663,6 +1721,124 @@ impl Robot {
             )),
             (None, None) => Ok(None),
         }
+    }
+}
+
+#[pyclass(frozen)]
+struct Jacobian {
+    jacobian: RsJacobian,
+    degrees: bool,
+}
+
+#[pymethods]
+impl Jacobian {
+    #[new]
+    #[pyo3(signature = (robot, joints, epsilon=1.0e-6, ee_transform=None))]
+    fn new(
+        robot: &Robot,
+        joints: [f64; 6],
+        epsilon: f64,
+        ee_transform: Option<[[f64; 4]; 4]>,
+    ) -> PyResult<Self> {
+        let epsilon = validate_jacobian_epsilon(epsilon)?;
+        let joints = joints_to_internal(joints, robot.degrees)?;
+        let kinematics = robot.build_robot(ee_transform)?;
+
+        Ok(Self {
+            jacobian: RsJacobian::new(kinematics.as_ref(), &joints, epsilon),
+            degrees: robot.degrees,
+        })
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (robot, joints, epsilon=1.0e-6))]
+    fn from_shape(robot: &KinematicsWithShape, joints: [f64; 6], epsilon: f64) -> PyResult<Self> {
+        let epsilon = validate_jacobian_epsilon(epsilon)?;
+        let joints = joints_to_internal(joints, robot.degrees)?;
+
+        Ok(Self {
+            jacobian: RsJacobian::new(&robot.robot, &joints, epsilon),
+            degrees: robot.degrees,
+        })
+    }
+
+    #[pyo3(signature = (radians=false))]
+    fn matrix(&self, radians: bool) -> [[f64; 6]; 6] {
+        let mut rows = *self.jacobian.matrix().rows();
+        convert_jacobian_columns_to_output_units(&mut rows, self.degrees, radians);
+        rows
+    }
+
+    #[pyo3(signature = (linear_velocity, angular_velocity, radians=false))]
+    fn velocities(
+        &self,
+        linear_velocity: [f64; 3],
+        angular_velocity: [f64; 3],
+        radians: bool,
+    ) -> PyResult<[f64; 6]> {
+        let twist = Twist::new(
+            vector3_to_dvec3(linear_velocity, "linear_velocity")?,
+            vector3_to_dvec3(angular_velocity, "angular_velocity")?,
+        );
+        let velocities = self
+            .jacobian
+            .velocities(&twist)
+            .map_err(PyValueError::new_err)?;
+
+        Ok(joint_rates_from_internal(velocities, self.degrees, radians))
+    }
+
+    #[pyo3(signature = (vx, vy, vz, radians=false))]
+    fn velocities_fixed(&self, vx: f64, vy: f64, vz: f64, radians: bool) -> PyResult<[f64; 6]> {
+        validate_vector3_values(&[vx, vy, vz], "linear velocity")?;
+        let velocities = self
+            .jacobian
+            .velocities_fixed(vx, vy, vz)
+            .map_err(PyValueError::new_err)?;
+
+        Ok(joint_rates_from_internal(velocities, self.degrees, radians))
+    }
+
+    #[pyo3(signature = (twist, radians=false))]
+    fn velocities_from_vector(&self, twist: [f64; 6], radians: bool) -> PyResult<[f64; 6]> {
+        validate_vector6(&twist, "twist")?;
+        let velocities = self
+            .jacobian
+            .velocities_from_vector(&twist)
+            .map_err(PyValueError::new_err)?;
+
+        Ok(joint_rates_from_internal(velocities, self.degrees, radians))
+    }
+
+    #[pyo3(signature = (force, torque, radians=false))]
+    fn torques(&self, force: [f64; 3], torque: [f64; 3], radians: bool) -> PyResult<[f64; 6]> {
+        let wrench = Wrench::new(
+            vector3_to_dvec3(force, "force")?,
+            vector3_to_dvec3(torque, "torque")?,
+        );
+        let torques = self.jacobian.torques(&wrench);
+
+        Ok(generalized_efforts_from_internal(
+            torques,
+            self.degrees,
+            radians,
+        ))
+    }
+
+    #[pyo3(signature = (wrench, radians=false))]
+    fn torques_from_vector(&self, wrench: [f64; 6], radians: bool) -> PyResult<[f64; 6]> {
+        validate_vector6(&wrench, "wrench")?;
+        let torques = self.jacobian.torques_from_vector(&wrench);
+
+        Ok(generalized_efforts_from_internal(
+            torques,
+            self.degrees,
+            radians,
+        ))
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Jacobian(degrees={})", self.degrees)
     }
 }
 
@@ -1782,6 +1958,77 @@ fn tcp_range((from, to): (f64, f64), name: &str) -> PyResult<RangeInclusive<f64>
     Ok(from..=to)
 }
 
+fn validate_jacobian_epsilon(epsilon: f64) -> PyResult<f64> {
+    if !epsilon.is_finite() || epsilon <= 0.0 {
+        return Err(PyValueError::new_err("epsilon must be positive"));
+    }
+    Ok(epsilon)
+}
+
+fn validate_vector6(values: &[f64; 6], name: &str) -> PyResult<()> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(PyValueError::new_err(format!(
+            "{name} values must be finite"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_vector3_values(values: &[f64; 3], name: &str) -> PyResult<()> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(PyValueError::new_err(format!(
+            "{name} values must be finite"
+        )));
+    }
+    Ok(())
+}
+
+fn vector3_to_dvec3(values: [f64; 3], name: &str) -> PyResult<DVec3> {
+    validate_vector3_values(&values, name)?;
+    Ok(DVec3::new(values[0], values[1], values[2]))
+}
+
+fn tie_points_to_dvec3(points: [[f64; 3]; 3], name: &str) -> PyResult<[DVec3; 3]> {
+    let [p1, p2, p3] = points;
+    Ok([
+        vector3_to_dvec3(p1, &format!("{name}[0]"))?,
+        vector3_to_dvec3(p2, &format!("{name}[1]"))?,
+        vector3_to_dvec3(p3, &format!("{name}[2]"))?,
+    ])
+}
+
+fn convert_jacobian_columns_to_output_units(
+    rows: &mut [[f64; 6]; 6],
+    degrees: bool,
+    radians: bool,
+) {
+    if degrees && !radians {
+        for value in rows.iter_mut().flatten() {
+            *value *= RADIANS_PER_DEGREE;
+        }
+    }
+}
+
+fn joint_rates_from_internal(mut rates: [f64; 6], degrees: bool, radians: bool) -> [f64; 6] {
+    if degrees && !radians {
+        rates.iter_mut().for_each(|rate| *rate = rate.to_degrees());
+    }
+    rates
+}
+
+fn generalized_efforts_from_internal(
+    mut efforts: [f64; 6],
+    degrees: bool,
+    radians: bool,
+) -> [f64; 6] {
+    if degrees && !radians {
+        efforts
+            .iter_mut()
+            .for_each(|effort| *effort *= RADIANS_PER_DEGREE);
+    }
+    efforts
+}
+
 fn validate_joints(joints: &Joints) -> PyResult<()> {
     if joints.iter().any(|joint| !joint.is_finite()) {
         return Err(PyValueError::new_err("joint values must be finite"));
@@ -1898,6 +2145,67 @@ fn matrix_to_pose(matrix: [[f64; 4]; 4]) -> PyResult<Pose> {
     let translation = DVec3::new(matrix[0][3], matrix[1][3], matrix[2][3]);
 
     Ok(Pose::from_parts(translation, DQuat::from_mat3(&rotation)))
+}
+
+fn matrix_to_frame_transform(matrix: [[f64; 4]; 4]) -> PyResult<RsFrameTransform> {
+    if matrix.into_iter().flatten().any(|value| !value.is_finite()) {
+        return Err(PyValueError::new_err("frame matrix values must be finite"));
+    }
+
+    let expected_bottom = [0.0, 0.0, 0.0, 1.0];
+    if matrix[3]
+        .iter()
+        .zip(expected_bottom.iter())
+        .any(|(actual, expected)| (actual - expected).abs() > 1.0e-9)
+    {
+        return Err(PyValueError::new_err(
+            "frame matrix bottom row must be [0, 0, 0, 1]",
+        ));
+    }
+
+    let c0 = DVec3::new(matrix[0][0], matrix[1][0], matrix[2][0]);
+    let c1 = DVec3::new(matrix[0][1], matrix[1][1], matrix[2][1]);
+    let c2 = DVec3::new(matrix[0][2], matrix[1][2], matrix[2][2]);
+    let lengths = [c0.length(), c1.length(), c2.length()];
+    if lengths.iter().any(|length| *length <= 1.0e-12) {
+        return Err(PyValueError::new_err(
+            "frame matrix scale must be finite and positive",
+        ));
+    }
+
+    let scale = lengths.iter().sum::<f64>() / 3.0;
+    let tolerance = scale.max(1.0) * 1.0e-8;
+    if lengths
+        .iter()
+        .any(|length| (length - scale).abs() > tolerance)
+    {
+        return Err(PyValueError::new_err(
+            "frame matrix must use one uniform scale value",
+        ));
+    }
+
+    let r0 = c0 / scale;
+    let r1 = c1 / scale;
+    let r2 = c2 / scale;
+    if r0.dot(r1).abs() > 1.0e-8 || r0.dot(r2).abs() > 1.0e-8 || r1.dot(r2).abs() > 1.0e-8 {
+        return Err(PyValueError::new_err(
+            "frame matrix scaled rotation axes must be orthogonal",
+        ));
+    }
+
+    let rotation = DMat3::from_cols(r0, r1, r2);
+    if rotation.determinant() <= 0.0 {
+        return Err(PyValueError::new_err(
+            "frame matrix must not contain reflection",
+        ));
+    }
+    let translation = DVec3::new(matrix[0][3], matrix[1][3], matrix[2][3]);
+
+    Ok(RsFrameTransform::from_parts(
+        translation,
+        DQuat::from_mat3(&rotation),
+        scale,
+    ))
 }
 
 fn matrix_to_parry_pose(matrix: [[f64; 4]; 4]) -> PyResult<ParryPose> {
@@ -2023,6 +2331,19 @@ fn pose_to_matrix(pose: Pose) -> [[f64; 4]; 4] {
     ]
 }
 
+fn frame_transform_to_matrix(frame: RsFrameTransform) -> [[f64; 4]; 4] {
+    let rotation = DMat3::from_quat(frame.rotation);
+    let x_axis = rotation.x_axis * frame.scale;
+    let y_axis = rotation.y_axis * frame.scale;
+    let z_axis = rotation.z_axis * frame.scale;
+    [
+        [x_axis.x, y_axis.x, z_axis.x, frame.translation.x],
+        [x_axis.y, y_axis.y, z_axis.y, frame.translation.y],
+        [x_axis.z, y_axis.z, z_axis.z, frame.translation.z],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
 fn pose32_to_matrix(pose: Pose32) -> [[f64; 4]; 4] {
     let rotation = Mat3::from_quat(pose.rotation);
     [
@@ -2092,6 +2413,8 @@ fn spherical_wrist(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AnnotatedJoints>()?;
     m.add_class::<CartesianPlanner>()?;
     m.add_class::<Constraints>()?;
+    m.add_class::<Frame>()?;
+    m.add_class::<Jacobian>()?;
     m.add_class::<KinematicsWithShape>()?;
     m.add_class::<KinematicModel>()?;
     m.add_class::<Mesh>()?;

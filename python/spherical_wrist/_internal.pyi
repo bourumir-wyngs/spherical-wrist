@@ -5,6 +5,8 @@ import numpy.typing as npt
 
 Matrix4 = npt.NDArray[np.float64]
 Joints = Tuple[float, float, float, float, float, float]
+Point3 = Tuple[float, float, float]
+TiePoints = Tuple[Point3, Point3, Point3]
 TcpBox = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
 BY_PREV: float
 BY_CONSTRAINTS: float
@@ -344,6 +346,18 @@ class AnnotatedJoints:
     move_into: str
 
     def has_flag(self, flag: int) -> bool: ...
+
+    def __repr__(self) -> str: ...
+
+
+class Frame:
+    scale: float
+    translation: Point3
+
+    @staticmethod
+    def from_tie(original: TiePoints, target: TiePoints) -> "Frame": ...
+
+    def as_matrix(self) -> Matrix4: ...
 
     def __repr__(self) -> str: ...
 
