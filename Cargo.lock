@@ -4548,22 +4548,11 @@ dependencies = [
  "rand 0.10.1",
  "rayon",
  "regex",
- "rs-read-trimesh 2.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rs-read-trimesh",
  "serde",
  "serde-saphyr",
  "sxd-document",
  "tracing",
-]
-
-[[package]]
-name = "rs-read-trimesh"
-version = "2.0.9"
-dependencies = [
- "dae-parser",
- "parry3d",
- "ply-rs-bw",
- "stl_io",
- "tobj",
 ]
 
 [[package]]
@@ -4919,7 +4908,7 @@ dependencies = [
  "parry3d",
  "pyo3",
  "rs-opw-kinematics",
- "rs-read-trimesh 2.0.9",
+ "rs-read-trimesh",
 ]
 
 [[package]]
