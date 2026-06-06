@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from spherical_wrist import Frame, KinematicModel, Mesh, Parallelogram, Robot
+from spherical_wrist._internal import Robot as _RobotInternal
 from scipy.spatial.transform import RigidTransform, Rotation
 import numpy as np
 import pytest
@@ -190,6 +191,36 @@ def test_frame_from_tie_rejects_non_uniform_scale() -> None:
 
     with pytest.raises(ValueError, match="similarity"):
         Frame.from_tie(original_tie_points, target_tie_points)
+
+
+def test_frame_from_tie_rejects_colinear_points() -> None:
+    original_tie_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    target_tie_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 2.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+
+    with pytest.raises(ValueError, match="colinear source points"):
+        Frame.from_tie(original_tie_points, target_tie_points)
+
+
+def test_internal_pose_matrix_rejects_invalid_rotation() -> None:
+    invalid_tool = np.eye(4)
+    invalid_tool[:3, :3] = 0.0
+
+    with pytest.raises(ValueError, match="rotation axes must be unit length"):
+        _RobotInternal(_model(), True, invalid_tool, None, None, None, None)
 
 
 def test_tool_and_ee_transform_alias_are_mutually_exclusive() -> None:

@@ -194,8 +194,8 @@ class Frame:
     Working frame computed from tie points.
 
     Unlike ``base`` and ``tool`` transforms, a frame may include uniform scale.
-    Use :meth:`from_tie` to compute the transform from three original trajectory
-    tie points and three required target tie points.
+    Use :meth:`from_tie` to compute the transform from a tie mapping: three original
+    trajectory points and the corresponding three required target points.
     """
 
     def __init__(self) -> None:
@@ -208,11 +208,12 @@ class Frame:
         target_tie_points: ArrayLike,
     ) -> Frame:
         """
-        Construct a frame from three original and three target tie points.
+        Construct a frame from a tie mapping.
 
-        The target tie points may be translated, rotated, and uniformly scaled
-        relative to the original tie points. Non-uniform scale and shear are
-        rejected.
+        A tie maps one set of three original trajectory points to the required
+        set of three target points. The resulting frame may translate, rotate,
+        and uniformly scale the original coordinate system. Degenerate point
+        sets, non-uniform scale, and shear are rejected with ``ValueError``.
         """
         original = _tie_points(original_tie_points, "original_tie_points")
         target = _tie_points(target_tie_points, "target_tie_points")
@@ -984,7 +985,7 @@ class CartesianPlanner:
 
     @property
     def max_solutions_await(self) -> int:
-        """Number of feasible suffix solutions collected before cancelling extra probes."""
+        """Number of feasible suffix solutions collected before skipping later strategy batches."""
         return int(self._planner.max_solutions_await)
 
     @property

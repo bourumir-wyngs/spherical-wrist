@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rs_opw_kinematics::cartesian::{
     AnnotatedJoints as RsAnnotatedJoints, Cartesian as RsCartesian, DEFAULT_CARTESIAN_LAYER_STATES,
-    DEFAULT_MAX_SOLUTIONS_AWAIT, DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
+    DEFAULT_MAX_SOLUTIONS_AWAIT, DEFAULT_PREFERRED_ONBOARDING_SUFFIX_CANDIDATES,
     DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES, DEFAULT_TRANSITION_COSTS, MoveKind as RsMoveKind,
     PathFlags,
 };
@@ -289,15 +289,17 @@ struct Frame {
 
 #[pymethods]
 impl Frame {
-    /// Construct a working frame from three original and three target tie points.
+    /// Construct a working frame from a tie mapping.
     ///
-    /// The target tie points may be translated, rotated, and uniformly scaled
-    /// relative to the original tie points. Non-uniform scale and shear are rejected.
+    /// A tie maps one set of three original trajectory points to the required
+    /// set of three target points. The resulting frame may translate, rotate,
+    /// and uniformly scale the original coordinate system. Degenerate point
+    /// sets, non-uniform scale, and shear are rejected.
     #[staticmethod]
     fn from_tie(original: [[f64; 3]; 3], target: [[f64; 3]; 3]) -> PyResult<Self> {
         let original = tie_points_to_dvec3(original, "original_tie_points")?;
         let target = tie_points_to_dvec3(target, "target_tie_points")?;
-        let frame = RsFrame::from_tie(original, target).map_err(|error| {
+        let frame = RsFrame::try_from_tie(original, target).map_err(|error| {
             PyValueError::new_err(format!(
                 "could not construct frame from tie points: {error}"
             ))
@@ -1191,7 +1193,7 @@ impl CartesianPlanner {
             rrt: self.rrt.to_rs_rrt(),
             allow_reconfigure: self.allow_reconfigure,
             max_reconfiguration_prefix_candidates: DEFAULT_RECONFIGURATION_PREFIX_CANDIDATES,
-            max_onboarding_suffix_candidates: DEFAULT_ONBOARDING_SUFFIX_CANDIDATES,
+            preferred_onboarding_suffix_candidates: DEFAULT_PREFERRED_ONBOARDING_SUFFIX_CANDIDATES,
             max_cartesian_layer_states: DEFAULT_CARTESIAN_LAYER_STATES,
             max_solutions_await: self.max_solutions_await,
             include_linear_interpolation: self.include_linear_interpolation,
@@ -2133,18 +2135,11 @@ fn angles_from_radians(values: [f64; 6], radians: bool) -> [f64; 6] {
 }
 
 fn matrix_to_pose(matrix: [[f64; 4]; 4]) -> PyResult<Pose> {
-    if matrix.into_iter().flatten().any(|value| !value.is_finite()) {
-        return Err(PyValueError::new_err("pose matrix values must be finite"));
-    }
-
-    let rotation = DMat3::from_cols(
-        DVec3::new(matrix[0][0], matrix[1][0], matrix[2][0]),
-        DVec3::new(matrix[0][1], matrix[1][1], matrix[2][1]),
-        DVec3::new(matrix[0][2], matrix[1][2], matrix[2][2]),
-    );
+    let rotation = validate_pose_matrix(matrix, "pose matrix")?;
     let translation = DVec3::new(matrix[0][3], matrix[1][3], matrix[2][3]);
 
-    Ok(Pose::from_parts(translation, DQuat::from_mat3(&rotation)))
+    Pose::try_from_parts(translation, DQuat::from_mat3(&rotation))
+        .map_err(|error| PyValueError::new_err(format!("invalid pose matrix: {error}")))
 }
 
 fn matrix_to_frame_transform(matrix: [[f64; 4]; 4]) -> PyResult<RsFrameTransform> {
@@ -2201,14 +2196,13 @@ fn matrix_to_frame_transform(matrix: [[f64; 4]; 4]) -> PyResult<RsFrameTransform
     }
     let translation = DVec3::new(matrix[0][3], matrix[1][3], matrix[2][3]);
 
-    Ok(RsFrameTransform::from_parts(
-        translation,
-        DQuat::from_mat3(&rotation),
-        scale,
-    ))
+    RsFrameTransform::try_from_parts(translation, DQuat::from_mat3(&rotation), scale)
+        .map_err(|error| PyValueError::new_err(format!("invalid frame matrix: {error}")))
 }
 
 fn matrix_to_parry_pose(matrix: [[f64; 4]; 4]) -> PyResult<ParryPose> {
+    validate_pose_matrix(matrix, "pose matrix")?;
+
     let rotation = Mat3::from_cols(
         Vec3::new(
             validate_f32(matrix[0][0], "pose matrix")?,
@@ -2236,10 +2230,63 @@ fn matrix_to_parry_pose(matrix: [[f64; 4]; 4]) -> PyResult<ParryPose> {
         validate_f32(value, "pose matrix")?;
     }
 
-    Ok(ParryPose::from_parts(
-        translation,
-        glam::Quat::from_mat3(&rotation),
-    ))
+    let pose = Pose32::try_from_parts(translation, glam::Quat::from_mat3(&rotation))
+        .map_err(|error| PyValueError::new_err(format!("invalid pose matrix: {error}")))?;
+
+    Ok(ParryPose::from_parts(pose.translation, pose.rotation))
+}
+
+fn validate_pose_matrix(matrix: [[f64; 4]; 4], name: &str) -> PyResult<DMat3> {
+    if matrix.iter().flatten().any(|value| !value.is_finite()) {
+        return Err(PyValueError::new_err(format!(
+            "{name} values must be finite"
+        )));
+    }
+
+    let expected_bottom = [0.0, 0.0, 0.0, 1.0];
+    if matrix[3]
+        .iter()
+        .zip(expected_bottom.iter())
+        .any(|(actual, expected)| (actual - expected).abs() > 1.0e-9)
+    {
+        return Err(PyValueError::new_err(format!(
+            "{name} bottom row must be [0, 0, 0, 1]"
+        )));
+    }
+
+    let c0 = DVec3::new(matrix[0][0], matrix[1][0], matrix[2][0]);
+    let c1 = DVec3::new(matrix[0][1], matrix[1][1], matrix[2][1]);
+    let c2 = DVec3::new(matrix[0][2], matrix[1][2], matrix[2][2]);
+    validate_unit_rotation_axes(c0, c1, c2, name)?;
+
+    Ok(DMat3::from_cols(c0, c1, c2))
+}
+
+fn validate_unit_rotation_axes(c0: DVec3, c1: DVec3, c2: DVec3, name: &str) -> PyResult<()> {
+    let lengths = [c0.length(), c1.length(), c2.length()];
+    if lengths
+        .iter()
+        .any(|length| *length <= 1.0e-12 || (length - 1.0).abs() > 1.0e-8)
+    {
+        return Err(PyValueError::new_err(format!(
+            "{name} rotation axes must be unit length"
+        )));
+    }
+
+    if c0.dot(c1).abs() > 1.0e-8 || c0.dot(c2).abs() > 1.0e-8 || c1.dot(c2).abs() > 1.0e-8 {
+        return Err(PyValueError::new_err(format!(
+            "{name} rotation axes must be orthogonal"
+        )));
+    }
+
+    let determinant = DMat3::from_cols(c0, c1, c2).determinant();
+    if determinant <= 0.0 {
+        return Err(PyValueError::new_err(format!(
+            "{name} rotation must not contain reflection"
+        )));
+    }
+
+    Ok(())
 }
 
 fn validate_f32(value: f64, name: &str) -> PyResult<f32> {
@@ -2283,11 +2330,8 @@ fn translation_pose(translation: [f64; 3]) -> PyResult<Pose> {
     if translation.iter().any(|value| !value.is_finite()) {
         return Err(PyValueError::new_err("translation values must be finite"));
     }
-    Ok(Pose::from_translation(DVec3::new(
-        translation[0],
-        translation[1],
-        translation[2],
-    )))
+    Pose::try_from_translation(DVec3::new(translation[0], translation[1], translation[2]))
+        .map_err(|error| PyValueError::new_err(error.to_string()))
 }
 
 fn linear_axis_pose(axis: usize, distance: f64) -> Pose {
