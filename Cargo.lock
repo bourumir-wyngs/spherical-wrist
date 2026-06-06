@@ -4548,7 +4548,7 @@ dependencies = [
  "rand 0.10.1",
  "rayon",
  "regex",
- "rs-read-trimesh",
+ "rs-read-trimesh 2.0.9 (git+https://github.com/bourumir-wyngs/rs-read-trimesh?branch=master)",
  "serde",
  "serde-saphyr",
  "sxd-document",
@@ -4560,6 +4560,18 @@ name = "rs-read-trimesh"
 version = "2.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9068939eba10f98fdbd0ca7d53a5cbaa70c85a37091388c1995d16747e1ab8fc"
+dependencies = [
+ "dae-parser",
+ "parry3d",
+ "ply-rs-bw",
+ "stl_io",
+ "tobj",
+]
+
+[[package]]
+name = "rs-read-trimesh"
+version = "2.0.9"
+source = "git+https://github.com/bourumir-wyngs/rs-read-trimesh?branch=master#1dbb9f4a3c9a868090d2a3e68d3ce8d3ccbf7ab3"
 dependencies = [
  "dae-parser",
  "parry3d",
@@ -4908,7 +4920,7 @@ dependencies = [
  "parry3d",
  "pyo3",
  "rs-opw-kinematics",
- "rs-read-trimesh",
+ "rs-read-trimesh 2.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
