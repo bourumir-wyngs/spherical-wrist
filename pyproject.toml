@@ -7,14 +7,59 @@ name = "spherical-wrist"
 dynamic = ["version"]
 requires-python = ">=3.11"
 description = "Python bindings for spherical-wrist industrial robot kinematics"
-license = { file = "LICENSE" }
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Bourumir Wyngs", email = "bourumir.wyngs@gmail.com" },
+]
+maintainers = [
+    { name = "Bourumir Wyngs", email = "bourumir.wyngs@gmail.com" },
+]
+keywords = [
+    "collision-checking",
+    "industrial-robots",
+    "inverse-kinematics",
+    "opw",
+    "6DOF",
+    "kinematics",
+    "path-planning",
+    "robotics",
+]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.26.4",
     "scipy>=1.16.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/bourumir-wyngs/spherical-wrist"
+Documentation = "https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/index.md"
+Repository = "https://github.com/bourumir-wyngs/spherical-wrist"
+Issues = "https://github.com/bourumir-wyngs/spherical-wrist/issues"
+"Merge Requests" = "https://github.com/bourumir-wyngs/spherical-wrist/pulls"
+"Rust Core" = "https://github.com/bourumir-wyngs/rs-opw-kinematics"
+"Research Article" = "https://www.researchgate.net/publication/264212870_An_Analytical_Solution_of_the_Inverse_Kinematics_Problem_of_Industrial_Serial_Manipulators_with_an_Ortho-parallel_Basis_and_a_Spherical_Wrist"
 
 [project.optional-dependencies]
 test = [

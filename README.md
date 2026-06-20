@@ -3,9 +3,9 @@
 `spherical-wrist` is a Python package for six-axis industrial robot
 kinematics, collision checking, path planning, and visualization.
 
-`spherical-wrist` is backed by the [rs-opw-kinematics](https://github.com/bourumir-wyngs/rs-opw-kinematics) crate. It wraps the 
-same Rust library as [py-opw-kinematics](https://github.com/CEAD-group/py-opw-kinematics), but exposes a broader API surface: 
-`py-opw-kinematics` intentionally publishes only a selected subset of 
+`spherical-wrist` is backed by the [rs-opw-kinematics](https://github.com/bourumir-wyngs/rs-opw-kinematics) crate. It wraps the
+same Rust library as [py-opw-kinematics](https://github.com/CEAD-group/py-opw-kinematics), but exposes a broader API surface:
+`py-opw-kinematics` intentionally publishes only a selected subset of
 `rs-opw-kinematics`.
 
 The goal of `spherical-wrist` is to make the full potential of
@@ -27,7 +27,7 @@ python -m pip install spherical-wrist
 The package requires Python 3.11 or newer.
 
 For local development, source builds, and maturin, see
-[Development With Maturin](docs/development-maturin.md). The Rust dependencies
+[Development With Maturin](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/development-maturin.md). The Rust dependencies
 are resolved from crates.io during the build.
 
 ## Hello World
@@ -66,7 +66,7 @@ print("TCP position:", pose.translation)
 print("IK solutions:", solutions)
 ```
 
-The same script is in [python/examples/readme_intro.py](python/examples/readme_intro.py).
+The same script is in [python/examples/readme_intro.py](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/readme_intro.py).
 
 ## What It Does
 
@@ -86,10 +86,10 @@ The same script is in [python/examples/readme_intro.py](python/examples/readme_i
 
 The most useful examples are:
 
-- [cartesian_stroke.py](python/examples/cartesian_stroke.py): builds a shaped
+- [cartesian_stroke.py](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/cartesian_stroke.py): builds a shaped
   Staubli RX160 robot, plans a Cartesian TCP stroke, annotates the path, and
   plays it in the visualization window.
-- [path_planning_rrt.py](python/examples/path_planning_rrt.py): plans a
+- [path_planning_rrt.py](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/path_planning_rrt.py): plans a
   collision-free joint-space path between start and goal configurations.
 
 Run them with:
@@ -106,39 +106,47 @@ for these commands:
 env -u PYTHONPATH python python/examples/cartesian_stroke.py
 ```
 
-See [Examples](python/examples/README.md) for the full example catalog.
+See [Examples](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/README.md) for the full example catalog.
 
 ## Documentation
 
-- [Installation](docs/installation.md)
-- [Quickstart](docs/quickstart.md)
-- [Core Concepts](docs/concepts.md)
-- [Robot Models](docs/robots.md)
-- [Transforms And Units](docs/transforms-and-units.md)
-- [Jacobian](docs/jacobian.md)
-- [Meshes And Collisions](docs/meshes-and-collisions.md)
-- [Path Planning](docs/path-planning.md)
-- [Visualization](docs/visualization.md)
-- [API Reference](docs/api-reference.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Development With Maturin](docs/development-maturin.md)
+- [Installation](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/installation.md)
+- [Quickstart](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/quickstart.md)
+- [Core Concepts](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/concepts.md)
+- [Robot Models](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/robots.md)
+- [Transforms And Units](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/transforms-and-units.md)
+- [Jacobian](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/jacobian.md)
+- [Meshes And Collisions](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/meshes-and-collisions.md)
+- [Path Planning](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/path-planning.md)
+- [Visualization](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/visualization.md)
+- [API Reference](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/api-reference.md)
+- [Troubleshooting](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/troubleshooting.md)
+- [Development With Maturin](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/development-maturin.md)
+
+## Project Links
+
+Please use the [GitHub repository](https://github.com/bourumir-wyngs/spherical-wrist)
+to raise issues and provide merge requests. The core Rust implementation is
+[rs-opw-kinematics](https://github.com/bourumir-wyngs/rs-opw-kinematics). A useful
+background article is
+[An Analytical Solution of the Inverse Kinematics Problem of Industrial Serial Manipulators with an Ortho-parallel Basis and a Spherical Wrist](https://www.researchgate.net/publication/264212870_An_Analytical_Solution_of_the_Inverse_Kinematics_Problem_of_Industrial_Serial_Manipulators_with_an_Ortho-parallel_Basis_and_a_Spherical_Wrist).
 
 ## Use cases
 
-Use `Robot` when you only need kinematics. It provides forward 
+Use `Robot` when you only need kinematics. It provides forward
 kinematics for all roboto joints, not only the tool-tip pose.
 
 Use `KinematicsWithShape` when robot geometry matters: collision checks,
 distance queries, path planning, or visualization.
 
-Use `RRTPlanner` when you want to move the robot between the two known poses. 
+Use `RRTPlanner` when you want to move the robot between the two known poses.
 It plans a collision-free joint-space path between them and can
 enforce a configurable safety distance around geometry. That margin matters in
 real cells: calibration error can otherwise turn a mathematically valid
 near-contact path into brief surface contact, resulting in scratches, or robot damage.
 
 Use `CartesianPlanner` when the tool center point must follow a Cartesian
-stroke defined by poses. It can start from an arbitrary robot pose, plan the landing into 
+stroke defined by poses. It can start from an arbitrary robot pose, plan the landing into
 best suitable joint configuration for the stroke when alternatives exist, and plan a
 collision-free path that follows the Cartesian line. Simple joint interpolation
 does not provide that guarantee.
