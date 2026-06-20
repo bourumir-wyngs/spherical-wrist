@@ -59,6 +59,7 @@ impl RRTPlanner {
     #[pyo3(signature = (robot, start, goal))]
     fn plan_rrt(
         &self,
+        py: Python<'_>,
         robot: &KinematicsWithShape,
         start: [f64; 6],
         goal: [f64; 6],
@@ -72,9 +73,10 @@ impl RRTPlanner {
         let start = joints_to_internal(start, robot.degrees)?;
         let goal = joints_to_internal(goal, robot.degrees)?;
         let stop = AtomicBool::new(false);
-        let path = self
-            .to_rs_rrt()
-            .plan_rrt(&start, &goal, &robot.robot, &stop)
+        let planner = self.to_rs_rrt();
+
+        let path = py
+            .detach(|| planner.plan_rrt(&start, &goal, &robot.robot, &stop))
             .map_err(PyValueError::new_err)?;
 
         Ok(solutions_from_internal(path, robot.degrees))

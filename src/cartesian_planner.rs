@@ -128,6 +128,7 @@ impl CartesianPlanner {
     #[pyo3(signature = (robot, start, land, steps, park))]
     fn plan(
         &self,
+        py: Python<'_>,
         robot: &KinematicsWithShape,
         start: [f64; 6],
         land: [[f64; 4]; 4],
@@ -164,8 +165,7 @@ impl CartesianPlanner {
             debug: self.debug,
         };
 
-        planner
-            .plan(&start, &land, steps, &park)
+        py.detach(|| planner.plan(&start, &land, steps, &park))
             .map(|path| annotated_joints_from_internal(path, robot.degrees))
             .map_err(PyValueError::new_err)
     }

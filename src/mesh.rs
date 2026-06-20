@@ -11,24 +11,25 @@ pub(crate) struct Mesh {
 impl Mesh {
     #[new]
     #[pyo3(signature = (path, scale=1.0, pose=None))]
-    fn new(path: &str, scale: f64, pose: Option<[[f64; 4]; 4]>) -> PyResult<Self> {
-        Self::from_path_with_pose(path, scale, pose)
+    fn new(py: Python<'_>, path: &str, scale: f64, pose: Option<[[f64; 4]; 4]>) -> PyResult<Self> {
+        Self::from_path_with_pose(py, path, scale, pose)
     }
 
     #[staticmethod]
     #[pyo3(signature = (path, scale=1.0))]
-    fn from_path(path: &str, scale: f64) -> PyResult<Self> {
-        Self::from_path_with_pose(path, scale, None)
+    fn from_path(py: Python<'_>, path: &str, scale: f64) -> PyResult<Self> {
+        Self::from_path_with_pose(py, path, scale, None)
     }
 
     #[staticmethod]
     #[pyo3(signature = (vertices, triangles, pose=None))]
     fn from_arrays(
+        py: Python<'_>,
         vertices: Vec<(f64, f64, f64)>,
         triangles: Vec<(u32, u32, u32)>,
         pose: Option<[[f64; 4]; 4]>,
     ) -> PyResult<Self> {
-        Self::from_vertices_and_triangles(vertices, triangles, pose)
+        Self::from_vertices_and_triangles(py, vertices, triangles, pose)
     }
 
     #[getter]
@@ -55,27 +56,33 @@ impl Mesh {
     }
 
     #[pyo3(signature = (other, safety_distance=0.0))]
-    fn collides(&self, other: &Mesh, safety_distance: f64) -> PyResult<bool> {
+    fn collides(&self, py: Python<'_>, other: &Mesh, safety_distance: f64) -> PyResult<bool> {
         let safety_distance = validate_nonnegative_f32(safety_distance, "safety_distance")?;
-        let intersects = parry3d::query::intersection_test(
-            &self.pose,
-            self.mesh.as_ref(),
-            &other.pose,
-            other.mesh.as_ref(),
-        )
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        let intersects = py
+            .detach(|| {
+                parry3d::query::intersection_test(
+                    &self.pose,
+                    self.mesh.as_ref(),
+                    &other.pose,
+                    other.mesh.as_ref(),
+                )
+            })
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         if intersects || safety_distance == 0.0 {
             return Ok(intersects);
         }
 
-        let distance = parry3d::query::distance(
-            &self.pose,
-            self.mesh.as_ref(),
-            &other.pose,
-            other.mesh.as_ref(),
-        )
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        let distance = py
+            .detach(|| {
+                parry3d::query::distance(
+                    &self.pose,
+                    self.mesh.as_ref(),
+                    &other.pose,
+                    other.mesh.as_ref(),
+                )
+            })
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(distance <= safety_distance)
     }
@@ -90,9 +97,16 @@ impl Mesh {
 }
 
 impl Mesh {
-    fn from_path_with_pose(path: &str, scale: f64, pose: Option<[[f64; 4]; 4]>) -> PyResult<Self> {
+    fn from_path_with_pose(
+        py: Python<'_>,
+        path: &str,
+        scale: f64,
+        pose: Option<[[f64; 4]; 4]>,
+    ) -> PyResult<Self> {
         let scale = validate_positive_f32(scale, "scale")?;
-        let mesh = load_trimesh(path, scale).map_err(PyValueError::new_err)?;
+        let mesh = py
+            .detach(|| load_trimesh(path, scale))
+            .map_err(PyValueError::new_err)?;
 
         Ok(Self {
             mesh: Arc::new(mesh),
@@ -101,6 +115,7 @@ impl Mesh {
     }
 
     fn from_vertices_and_triangles(
+        py: Python<'_>,
         vertices: Vec<(f64, f64, f64)>,
         triangles: Vec<(u32, u32, u32)>,
         pose: Option<[[f64; 4]; 4]>,
@@ -119,7 +134,8 @@ impl Mesh {
             .into_iter()
             .map(|(a, b, c)| [a, b, c])
             .collect::<Vec<_>>();
-        let mesh = TriMesh::new(vertices, triangles)
+        let mesh = py
+            .detach(|| TriMesh::new(vertices, triangles))
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(Self {

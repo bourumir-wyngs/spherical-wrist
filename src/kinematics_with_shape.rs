@@ -38,6 +38,7 @@ impl KinematicsWithShape {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
+        py: Python<'_>,
         kinematic_model: KinematicModel,
         degrees: bool,
         joint_meshes: Vec<Mesh>,
@@ -89,42 +90,44 @@ impl KinematicsWithShape {
             });
         }
 
-        let base_body = base_mesh.map(|mesh| {
-            let base_pose = base.map(Pose::to_f32).unwrap_or_else(Pose32::identity) * mesh.pose32();
-            BaseBody {
-                mesh: mesh.clone_trimesh(),
-                base_pose,
-            }
-        });
-        let tool_body = tool_mesh.map(|mesh| mesh.local_trimesh());
-        let collision_environment = environment
-            .unwrap_or_default()
-            .into_iter()
-            .map(|mesh| RsCollisionBody {
-                mesh: mesh.clone_trimesh(),
-                pose: mesh.pose32(),
+        let body = py.detach(move || {
+            let base_body = base_mesh.map(|mesh| {
+                let base_pose =
+                    base.map(Pose::to_f32).unwrap_or_else(Pose32::identity) * mesh.pose32();
+                BaseBody {
+                    mesh: mesh.clone_trimesh(),
+                    base_pose,
+                }
+            });
+            let tool_body = tool_mesh.map(|mesh| mesh.local_trimesh());
+            let collision_environment = environment
+                .unwrap_or_default()
+                .into_iter()
+                .map(|mesh| RsCollisionBody {
+                    mesh: mesh.clone_trimesh(),
+                    pose: mesh.pose32(),
+                })
+                .collect();
+            let safety = match safety {
+                Some(safety) => safety.to_rs_safety(),
+                None => RsSafetyDistances::standard(if first_collision_only {
+                    CheckMode::FirstCollisionOnly
+                } else {
+                    CheckMode::AllCollsions
+                }),
+            };
+
+            Ok::<RobotBody, PyErr>(RobotBody {
+                joint_meshes: joint_mesh_array(joint_meshes)?,
+                tool: tool_body,
+                base: base_body,
+                collision_environment,
+                safety,
             })
-            .collect();
-        let safety = match safety {
-            Some(safety) => safety.to_rs_safety(),
-            None => RsSafetyDistances::standard(if first_collision_only {
-                CheckMode::FirstCollisionOnly
-            } else {
-                CheckMode::AllCollsions
-            }),
-        };
+        })?;
 
         Ok(Self {
-            robot: RsKinematicsWithShape {
-                kinematics,
-                body: RobotBody {
-                    joint_meshes: joint_mesh_array(joint_meshes)?,
-                    tool: tool_body,
-                    base: base_body,
-                    collision_environment,
-                    safety,
-                },
-            },
+            robot: RsKinematicsWithShape { kinematics, body },
             degrees,
             kinematic_model,
             constraints,
@@ -250,26 +253,33 @@ impl KinematicsWithShape {
     }
 
     #[pyo3(signature = (joints))]
-    fn collides(&self, joints: [f64; 6]) -> PyResult<bool> {
+    fn collides(&self, py: Python<'_>, joints: [f64; 6]) -> PyResult<bool> {
         let joints = joints_to_internal(joints, self.degrees)?;
-        Ok(self.robot.collides(&joints))
+        Ok(py.detach(|| self.robot.collides(&joints)))
     }
 
     #[pyo3(signature = (joints))]
-    fn collision_details(&self, joints: [f64; 6]) -> PyResult<Vec<(usize, usize)>> {
+    fn collision_details(&self, py: Python<'_>, joints: [f64; 6]) -> PyResult<Vec<(usize, usize)>> {
         let joints = joints_to_internal(joints, self.degrees)?;
-        Ok(self.robot.collision_details(&joints))
+        Ok(py.detach(|| self.robot.collision_details(&joints)))
     }
 
     #[pyo3(signature = (joints, safety))]
-    fn near(&self, joints: [f64; 6], safety: &SafetyDistances) -> PyResult<Vec<(usize, usize)>> {
+    fn near(
+        &self,
+        py: Python<'_>,
+        joints: [f64; 6],
+        safety: &SafetyDistances,
+    ) -> PyResult<Vec<(usize, usize)>> {
         let joints = joints_to_internal(joints, self.degrees)?;
-        Ok(self.robot.near(&joints, &safety.to_rs_safety()))
+        let safety = safety.to_rs_safety();
+        Ok(py.detach(|| self.robot.near(&joints, &safety)))
     }
 
     #[pyo3(signature = (joints, from_limits, to_limits))]
     fn non_colliding_offsets(
         &self,
+        py: Python<'_>,
         joints: [f64; 6],
         from_limits: [f64; 6],
         to_limits: [f64; 6],
@@ -278,11 +288,11 @@ impl KinematicsWithShape {
         let from_limits = joints_to_internal(from_limits, self.degrees)?;
         let to_limits = joints_to_internal(to_limits, self.degrees)?;
 
-        Ok(solutions_from_internal(
+        let solutions = py.detach(|| {
             self.robot
-                .non_colliding_offsets(&joints, &from_limits, &to_limits),
-            self.degrees,
-        ))
+                .non_colliding_offsets(&joints, &from_limits, &to_limits)
+        });
+        Ok(solutions_from_internal(solutions, self.degrees))
     }
 
     #[pyo3(signature = (joints))]
