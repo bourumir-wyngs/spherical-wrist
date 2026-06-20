@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from email.parser import Parser
 import json
 import os
 import platform
@@ -180,8 +181,11 @@ def check_artifacts(
         "sdists": [],
     }
 
+    sdist_reports = []
     for sdist in sdists:
-        report["sdists"].append(inspect_sdist(sdist))  # type: ignore[index]
+        sdist_report = inspect_sdist(sdist)
+        sdist_reports.append(sdist_report)
+        report["sdists"].append(sdist_report)  # type: ignore[index]
 
     wheel_reports = []
     for wheel in wheels:
@@ -192,6 +196,8 @@ def check_artifacts(
         )
         wheel_reports.append(wheel_report)
         report["wheels"].append(wheel_report)  # type: ignore[index]
+
+    report["version"] = require_single_artifact_version(sdist_reports, wheel_reports)
 
     write_wheel_sizes(wheel_reports, report_dir / "wheel-sizes.tsv")
 
@@ -218,10 +224,12 @@ def inspect_sdist(path: Path) -> dict[str, object]:
         pkg_info_text = archive.extractfile(pkg_info).read().decode("utf-8")
 
     require_metadata(pkg_info_text, path.name)
+    version = metadata_version(pkg_info_text, path.name)
     return {
         "file": path.name,
         "bytes": path.stat().st_size,
         "mebibytes": round(path.stat().st_size / (1024 * 1024), 3),
+        "version": version,
     }
 
 
@@ -248,6 +256,13 @@ def inspect_wheel(
             raise SystemExit(f"{path.name}: missing dist-info/METADATA")
         metadata = archive.read(metadata_name).decode("utf-8")
         require_metadata(metadata, path.name)
+        metadata_version_text = metadata_version(metadata, path.name)
+        version_text = str(version)
+        if metadata_version_text != version_text:
+            raise SystemExit(
+                f"{path.name}: wheel filename version {version_text!r} does not "
+                f"match METADATA version {metadata_version_text!r}"
+            )
 
         native_members = sorted(
             name
@@ -278,13 +293,40 @@ def inspect_wheel(
         "bytes": path.stat().st_size,
         "mebibytes": round(path.stat().st_size / (1024 * 1024), 3),
         "name": str(name),
-        "version": str(version),
+        "version": version_text,
         "build": build,
         "tags": tag_strings,
         "required_files": list(REQUIRED_PACKAGE_FILES),
         "native_files": native_members,
         "native_dependency_reports": native_reports,
     }
+
+
+def metadata_version(metadata: str, artifact_name: str) -> str:
+    version = Parser().parsestr(metadata).get("Version")
+    if version is None:
+        raise SystemExit(f"{artifact_name}: missing metadata header 'Version'")
+    return version
+
+
+def require_single_artifact_version(
+    sdist_reports: list[dict[str, object]],
+    wheel_reports: list[dict[str, object]],
+) -> str:
+    artifacts = [
+        (str(report["file"]), str(report["version"]))
+        for report in [*sdist_reports, *wheel_reports]
+    ]
+    versions = {version for _, version in artifacts}
+    if len(versions) != 1:
+        details = "\n".join(
+            f"  {artifact}: {version}" for artifact, version in sorted(artifacts)
+        )
+        raise SystemExit(f"Release artifacts contain multiple versions:\n{details}")
+
+    version = artifacts[0][1]
+    print(f"All release artifacts have version {version}")
+    return version
 
 
 def require_metadata(metadata: str, artifact_name: str) -> None:
