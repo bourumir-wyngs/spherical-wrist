@@ -62,6 +62,11 @@ def main() -> None:
         ),
     )
     build.add_argument(
+        "--auditwheel",
+        choices=("repair", "check", "warn", "skip"),
+        help="Optional maturin auditwheel mode for Linux wheel builds.",
+    )
+    build.add_argument(
         "--interpreter",
         default=sys.executable,
         help="Python interpreter passed to maturin -i. Defaults to this Python.",
@@ -136,9 +141,16 @@ def resolve_path(path: str) -> Path:
     return PROJECT_ROOT / candidate
 
 
+def resolve_executable_path(path: str) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return PROJECT_ROOT / candidate
+
+
 def build_artifacts(args: argparse.Namespace, dist_dir: Path) -> None:
-    maturin_python = Path(args.maturin).resolve()
-    interpreter = Path(args.interpreter).resolve()
+    maturin_python = resolve_executable_path(args.maturin)
+    interpreter = resolve_executable_path(args.interpreter)
     command = [
         str(maturin_python),
         "-m",
@@ -154,6 +166,8 @@ def build_artifacts(args: argparse.Namespace, dist_dir: Path) -> None:
     ]
     if args.compatibility:
         command.extend(["--compatibility", args.compatibility])
+    if args.auditwheel:
+        command.extend(["--auditwheel", args.auditwheel])
 
     run(command, cwd=PROJECT_ROOT, env=python_path_env(maturin_python))
 
