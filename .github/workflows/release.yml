@@ -81,7 +81,7 @@ jobs:
             systemd-devel
             wayland-devel
             libxkbcommon-devel
-          args: ${{ env.MATURIN_BUILD_ARGS }} -i python${{ matrix.python-version }}
+          args: ${{ env.MATURIN_BUILD_ARGS }} --auditwheel repair -i python${{ matrix.python-version }}
 
       - name: Install and import wheel
         shell: python
