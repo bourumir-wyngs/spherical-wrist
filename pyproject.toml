@@ -30,7 +30,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Manufacturing",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
