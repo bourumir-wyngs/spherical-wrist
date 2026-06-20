@@ -1,0 +1,40 @@
+name: Release Artifact Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-artifacts:
+    name: Build and test release artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install release-check dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "maturin[patchelf]>=1.7,<2.0" packaging pytest twine
+
+      - name: Build and check release artifacts
+        run: |
+          python scripts/check_release_artifacts.py build --compatibility linux
+
+      - name: Upload release artifact report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-artifact-report
+          path: target/release-check/report/
+          if-no-files-found: ignore

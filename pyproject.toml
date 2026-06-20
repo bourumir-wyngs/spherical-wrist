@@ -17,14 +17,13 @@ maintainers = [
     { name = "Bourumir Wyngs", email = "bourumir.wyngs@gmail.com" },
 ]
 keywords = [
-    "collision-checking",
-    "industrial-robots",
+    "robotics",
+    "kinematics",
     "inverse-kinematics",
+    "path-planning",
+    "collision-detection",
     "opw",
     "6DOF",
-    "kinematics",
-    "path-planning",
-    "robotics",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

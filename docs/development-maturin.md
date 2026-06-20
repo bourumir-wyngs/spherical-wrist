@@ -47,6 +47,21 @@ env -u PYTHONPATH PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/pytest -q
 env -u PYTHONPATH .venv/bin/maturin develop --release --extras test
 ```
 
+## Check Release Artifacts
+
+The release-artifact check builds an sdist, builds a wheel from that generated
+sdist, validates metadata and README rendering with twine, installs the wheel in
+a clean virtual environment, and runs the Python tests from outside the source
+checkout:
+
+```bash
+uv pip install --python .venv/bin/python packaging pytest twine
+PATH=.venv/bin:$PATH .venv/bin/python scripts/check_release_artifacts.py build --compatibility linux
+```
+
+Use `--compatibility pypi` when checking upload-compatible tags in a suitable
+manylinux or release build environment.
+
 ## Common Source Build Issues
 
 If maturin reports a missing `patchelf`, install it in the virtual environment:
@@ -54,5 +69,3 @@ If maturin reports a missing `patchelf`, install it in the virtual environment:
 ```bash
 python -m pip install patchelf
 ```
-
-
