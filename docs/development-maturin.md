@@ -13,7 +13,7 @@ The source checkout is self-contained. `Cargo.toml` uses published crates.io
 dependencies for the Rust crates, and Cargo resolves them during source builds:
 
 ```text
-rs-py-opw/
+spherical-wrist/
   Cargo.toml
   pyproject.toml
   python/

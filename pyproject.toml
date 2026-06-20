@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
+requires = ["maturin>=1.12.3,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -9,7 +9,10 @@ requires-python = ">=3.11"
 description = "Python bindings for spherical-wrist industrial robot kinematics"
 readme = "README.md"
 license = "BSD-3-Clause"
-license-files = ["LICENSE"]
+license-files = [
+    "LICENSE",
+    "python/examples/assets/staubli/LICENSE",
+]
 authors = [
     { name = "Bourumir Wyngs", email = "bourumir.wyngs@gmail.com" },
 ]
@@ -30,7 +33,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Manufacturing",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",

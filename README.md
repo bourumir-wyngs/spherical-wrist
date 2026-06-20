@@ -108,6 +108,39 @@ env -u PYTHONPATH python python/examples/cartesian_stroke.py
 
 See [Examples](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/README.md) for the full example catalog.
 
+## Visualization Requirements
+The default release includes visualization tools that are important for trying
+out the package easily and checking if the robot is properly configured.
+Headless release for advanced users who have RViz or comparable visualization
+as an alternative is planned. 
+
+Non-visual kinematics, collision, and planning APIs need only the Python
+dependencies installed by pip. Visualization opens a Bevy/wgpu desktop window,
+so it also needs a graphical session and a working GPU driver.
+
+Linux:
+
+- run inside an X11 or Wayland desktop session; headless servers and minimal
+  containers need a display server or virtual display setup
+- install GPU runtime drivers, including a Vulkan driver such as
+  `mesa-vulkan-drivers`, `vulkan-radeon`, `vulkan-intel`, or the appropriate
+  NVIDIA driver package for your system
+- if building from source, install Bevy's native build dependencies:
+  `g++`, `pkg-config`, `libx11-dev`, `libasound2-dev`, `libudev-dev`,
+  `libxkbcommon-x11-0`, `libwayland-dev`, and `libxkbcommon-dev`
+
+macOS:
+
+- run in a normal graphical login session on a Metal-capable Mac
+- prebuilt wheels should not require Xcode or command line tools at runtime
+- source builds require Apple's command line tools or Xcode
+
+Windows:
+
+- run in a normal graphical desktop session with current GPU drivers
+- prebuilt wheels should not require Visual Studio Build Tools at runtime
+- source builds require the Visual Studio C++ build tools and a Windows SDK
+
 ## Documentation
 
 - [Installation](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/installation.md)
