@@ -35,7 +35,7 @@ REQUIRED_PACKAGE_FILES = (
     f"{PACKAGE_DIR}/_internal.pyi",
     f"{PACKAGE_DIR}/py.typed",
 )
-NATIVE_SUFFIXES = (".so", ".pyd", ".dll", ".dylib")
+NATIVE_SUFFIXES = (".pyd", ".dll", ".dylib")
 STAUBLI_ASSET_PREFIX = "python/examples/assets/staubli/"
 STAUBLI_LICENSE_FILE = f"{STAUBLI_ASSET_PREFIX}LICENSE"
 
@@ -296,22 +296,22 @@ def inspect_wheel(
                 f"match METADATA version {metadata_version_text!r}"
             )
 
-        native_members = sorted(
-            name
-            for name in names
-            if name.endswith(NATIVE_SUFFIXES)
-            and (name.startswith(f"{PACKAGE_DIR}/") or ".libs/" in name)
-        )
+        native_members = sorted(name for name in names if is_native_member(name))
         if not native_members:
             raise SystemExit(f"{path.name}: no native extension or library found")
 
         native_reports = []
         if not skip_native:
             if is_compatible(tags):
+                inspected_members = [
+                    name for name in native_members if name.startswith(f"{PACKAGE_DIR}/")
+                ]
+                if not inspected_members:
+                    inspected_members = native_members
                 native_reports = inspect_native_dependencies(
                     path,
                     archive,
-                    native_members,
+                    inspected_members,
                     report_dir,
                 )
             else:
@@ -333,6 +333,18 @@ def inspect_wheel(
         "native_dependency_reports": native_reports,
         "staubli_assets": staubli_assets,
     }
+
+
+def is_native_member(name: str) -> bool:
+    if not (name.startswith(f"{PACKAGE_DIR}/") or ".libs/" in name):
+        return False
+
+    filename = PurePosixPath(name).name
+    return (
+        filename.endswith(NATIVE_SUFFIXES)
+        or filename.endswith(".so")
+        or ".so." in filename
+    )
 
 
 def metadata_version(metadata: str, artifact_name: str) -> str:
@@ -466,11 +478,16 @@ def inspect_native_dependencies(
     with tempfile.TemporaryDirectory(prefix="spherical-wrist-native-") as tmp:
         tmp_dir = Path(tmp)
         member_targets = {}
-        for member in native_members:
+        for member in archive.namelist():
             target = archive_member_path(tmp_dir, member)
+            if member.endswith("/"):
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(archive.read(member))
-            member_targets[member] = target
+            if member in native_members:
+                member_targets[member] = target
 
         for member, target in member_targets.items():
             command = [*command_template, str(target)]
