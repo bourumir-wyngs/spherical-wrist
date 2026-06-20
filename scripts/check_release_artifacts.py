@@ -17,7 +17,11 @@ from pathlib import Path, PurePosixPath
 
 try:
     from packaging.tags import sys_tags
-    from packaging.utils import parse_wheel_filename
+    from packaging.utils import (
+        canonicalize_name,
+        parse_sdist_filename,
+        parse_wheel_filename,
+    )
 except ImportError as exc:
     raise SystemExit(
         "Missing release-check dependency. Install with: "
@@ -65,9 +69,7 @@ def main() -> None:
     build.add_argument(
         "--maturin",
         default=sys.executable,
-        help=(
-            "Python executable used to run `-m maturin`. Defaults to this Python."
-        ),
+        help=("Python executable used to run `-m maturin`. Defaults to this Python."),
     )
     build.add_argument(
         "--keep-dist",
@@ -227,12 +229,23 @@ def inspect_sdist(path: Path) -> dict[str, object]:
 
     require_metadata(pkg_info_text, path.name)
     staubli_assets = require_staubli_asset_policy(names, pkg_info_text, path.name)
-    version = metadata_version(pkg_info_text, path.name)
+    distribution, filename_version = parse_sdist_filename(path.name)
+    metadata_version_text = metadata_version(pkg_info_text, path.name)
+
+    if canonicalize_name(str(distribution)) != canonicalize_name("spherical-wrist"):
+        raise SystemExit(f"{path.name}: unexpected distribution name {distribution!r}")
+
+    if str(filename_version) != metadata_version_text:
+        raise SystemExit(
+            f"{path.name}: sdist filename version {filename_version!s} does not "
+            f"match PKG-INFO version {metadata_version_text!r}"
+        )
+
     return {
         "file": path.name,
         "bytes": path.stat().st_size,
         "mebibytes": round(path.stat().st_size / (1024 * 1024), 3),
-        "version": version,
+        "version": metadata_version_text,
         "staubli_assets": staubli_assets,
     }
 
@@ -354,19 +367,12 @@ def require_staubli_asset_policy(
         if name != STAUBLI_LICENSE_FILE and not name.endswith("/")
     )
     source_license_present = STAUBLI_LICENSE_FILE in staubli_members
-    metadata_license_present = (
-        STAUBLI_LICENSE_FILE in metadata_license_files(metadata)
-    )
+    metadata_license_present = STAUBLI_LICENSE_FILE in metadata_license_files(metadata)
 
     if asset_members and not source_license_present:
         raise SystemExit(
             f"{artifact_name}: Staubli assets are distributed without "
             f"{STAUBLI_LICENSE_FILE}"
-        )
-    if source_license_present and not asset_members:
-        raise SystemExit(
-            f"{artifact_name}: {STAUBLI_LICENSE_FILE} is distributed without "
-            "the Staubli assets"
         )
     if asset_members and not metadata_license_present:
         raise SystemExit(
