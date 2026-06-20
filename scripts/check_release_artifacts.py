@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 import venv
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 try:
     from packaging.tags import sys_tags
@@ -32,6 +32,8 @@ REQUIRED_PACKAGE_FILES = (
     f"{PACKAGE_DIR}/py.typed",
 )
 NATIVE_SUFFIXES = (".so", ".pyd", ".dll", ".dylib")
+STAUBLI_ASSET_PREFIX = "python/examples/assets/staubli/"
+STAUBLI_LICENSE_FILE = f"{STAUBLI_ASSET_PREFIX}LICENSE"
 
 
 def main() -> None:
@@ -224,12 +226,14 @@ def inspect_sdist(path: Path) -> dict[str, object]:
         pkg_info_text = archive.extractfile(pkg_info).read().decode("utf-8")
 
     require_metadata(pkg_info_text, path.name)
+    staubli_assets = require_staubli_asset_policy(names, pkg_info_text, path.name)
     version = metadata_version(pkg_info_text, path.name)
     return {
         "file": path.name,
         "bytes": path.stat().st_size,
         "mebibytes": round(path.stat().st_size / (1024 * 1024), 3),
         "version": version,
+        "staubli_assets": staubli_assets,
     }
 
 
@@ -256,6 +260,7 @@ def inspect_wheel(
             raise SystemExit(f"{path.name}: missing dist-info/METADATA")
         metadata = archive.read(metadata_name).decode("utf-8")
         require_metadata(metadata, path.name)
+        staubli_assets = require_staubli_asset_policy(names, metadata, path.name)
         metadata_version_text = metadata_version(metadata, path.name)
         version_text = str(version)
         if metadata_version_text != version_text:
@@ -299,6 +304,7 @@ def inspect_wheel(
         "required_files": list(REQUIRED_PACKAGE_FILES),
         "native_files": native_members,
         "native_dependency_reports": native_reports,
+        "staubli_assets": staubli_assets,
     }
 
 
@@ -327,6 +333,67 @@ def require_single_artifact_version(
     version = artifacts[0][1]
     print(f"All release artifacts have version {version}")
     return version
+
+
+def require_staubli_asset_policy(
+    names: list[str] | set[str],
+    metadata: str,
+    artifact_name: str,
+) -> dict[str, object]:
+    source_paths = {
+        source_path
+        for name in names
+        if (source_path := normalized_source_path(name)) is not None
+    }
+    staubli_members = {
+        name for name in source_paths if name.startswith(STAUBLI_ASSET_PREFIX)
+    }
+    asset_members = sorted(
+        name
+        for name in staubli_members
+        if name != STAUBLI_LICENSE_FILE and not name.endswith("/")
+    )
+    source_license_present = STAUBLI_LICENSE_FILE in staubli_members
+    metadata_license_present = (
+        STAUBLI_LICENSE_FILE in metadata_license_files(metadata)
+    )
+
+    if asset_members and not source_license_present:
+        raise SystemExit(
+            f"{artifact_name}: Staubli assets are distributed without "
+            f"{STAUBLI_LICENSE_FILE}"
+        )
+    if source_license_present and not asset_members:
+        raise SystemExit(
+            f"{artifact_name}: {STAUBLI_LICENSE_FILE} is distributed without "
+            "the Staubli assets"
+        )
+    if asset_members and not metadata_license_present:
+        raise SystemExit(
+            f"{artifact_name}: Staubli assets are distributed but metadata lacks "
+            f"License-File: {STAUBLI_LICENSE_FILE}"
+        )
+
+    return {
+        "asset_files": asset_members,
+        "source_license_file": source_license_present,
+        "metadata_license_file": metadata_license_present,
+    }
+
+
+def normalized_source_path(name: str) -> str | None:
+    parts = PurePosixPath(name).parts
+    if not parts or ".." in parts:
+        return None
+    if parts[0] == "python":
+        return "/".join(parts)
+    if len(parts) > 1 and parts[1] == "python":
+        return "/".join(parts[1:])
+    return None
+
+
+def metadata_license_files(metadata: str) -> set[str]:
+    return set(Parser().parsestr(metadata).get_all("License-File", []))
 
 
 def require_metadata(metadata: str, artifact_name: str) -> None:
@@ -378,9 +445,14 @@ def inspect_native_dependencies(
 
     with tempfile.TemporaryDirectory(prefix="spherical-wrist-native-") as tmp:
         tmp_dir = Path(tmp)
+        member_targets = {}
         for member in native_members:
-            target = tmp_dir / Path(member).name
+            target = archive_member_path(tmp_dir, member)
+            target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(archive.read(member))
+            member_targets[member] = target
+
+        for member, target in member_targets.items():
             command = [*command_template, str(target)]
             completed = subprocess.run(
                 command,
@@ -390,19 +462,28 @@ def inspect_native_dependencies(
                 stderr=subprocess.STDOUT,
                 check=False,
             )
-            report_path = native_report_dir / f"{target.name}.txt"
+            report_path = archive_member_path(native_report_dir, f"{member}.txt")
+            report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(
                 "$ " + " ".join(command) + "\n" + completed.stdout,
                 encoding="utf-8",
             )
             report_paths.append(str(report_path))
-            if completed.returncode != 0:
+            output = completed.stdout.lower()
+            if completed.returncode != 0 or "not found" in output:
                 raise SystemExit(
-                    f"Native dependency inspection failed for {member} in {wheel.name}; "
+                    f"Unresolved native dependency for {member} in {wheel.name}; "
                     f"see {report_path}"
                 )
 
     return report_paths
+
+
+def archive_member_path(root: Path, member: str) -> Path:
+    member_path = PurePosixPath(member)
+    if member_path.is_absolute() or ".." in member_path.parts:
+        raise SystemExit(f"Unsafe archive member path: {member!r}")
+    return root.joinpath(*member_path.parts)
 
 
 def select_compatible_wheel(wheels: list[Path]) -> Path:

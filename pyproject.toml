@@ -9,7 +9,10 @@ requires-python = ">=3.11"
 description = "Python bindings for spherical-wrist industrial robot kinematics"
 readme = "README.md"
 license = "BSD-3-Clause"
-license-files = ["LICENSE"]
+license-files = [
+    "LICENSE",
+    "python/examples/assets/staubli/LICENSE",
+]
 authors = [
     { name = "Bourumir Wyngs", email = "bourumir.wyngs@gmail.com" },
 ]
