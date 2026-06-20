@@ -26,8 +26,9 @@ python -m pip install spherical-wrist
 
 The package requires Python 3.11 or newer.
 
-For local development, source builds, maturin, and sibling Rust repositories,
-see [Development With Maturin](docs/development-maturin.md).
+For local development, source builds, and maturin, see
+[Development With Maturin](docs/development-maturin.md). The Rust dependencies
+are resolved from crates.io during the build.
 
 ## Hello World
 

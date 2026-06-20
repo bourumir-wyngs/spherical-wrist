@@ -2,7 +2,7 @@
 spherical-wrist: Python bindings for spherical-wrist industrial robot kinematics.
 
 The initial API mirrors the introductory py-opw-kinematics workflow while using
-the local rs-opw-kinematics crate internally.
+the rs-opw-kinematics crate internally.
 """
 
 from __future__ import annotations

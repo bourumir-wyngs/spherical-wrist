@@ -7,31 +7,22 @@ with pip:
 python -m pip install spherical-wrist
 ```
 
-## Repository Layout
+## Source Layout
 
-The current source checkout expects sibling Rust repositories:
+The source checkout is self-contained. `Cargo.toml` uses published crates.io
+dependencies for the Rust crates, and Cargo resolves them during source builds:
 
 ```text
-py-rs/
-  rs-py-opw/
-  rs-opw-kinematics/
-  rs-read-trimesh/
-```
-
-`rs-py-opw/Cargo.toml` uses path dependencies for the Rust crates.
-
-The current Python bindings expect `rs-opw-kinematics` from the
-`bw/glam-opw-kinematics` branch.
-
-```bash
-cd ../rs-opw-kinematics
-git checkout bw/glam-opw-kinematics
+rs-py-opw/
+  Cargo.toml
+  pyproject.toml
+  python/
+  src/
 ```
 
 ## Build A Development Environment
 
 ```bash
-cd ../rs-py-opw
 uv venv --python 3.12 .venv
 uv pip install maturin pytest patchelf
 uv run maturin develop --release --extras test
@@ -64,11 +55,4 @@ If maturin reports a missing `patchelf`, install it in the virtual environment:
 python -m pip install patchelf
 ```
 
-If Cargo cannot find a local crate, confirm the sibling directories exist and
-match the path dependencies in `Cargo.toml`.
 
-If `rs-opw-kinematics` API symbols are missing, confirm the branch:
-
-```bash
-git -C ../rs-opw-kinematics branch --show-current
-```
