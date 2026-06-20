@@ -72,6 +72,15 @@ jobs:
           maturin-version: v${{ env.MATURIN_VERSION }}
           target: x86_64
           manylinux: "2014"
+          before-script-linux: >-
+            yum install -y
+            gcc-c++
+            pkgconfig
+            libX11-devel
+            alsa-lib-devel
+            systemd-devel
+            wayland-devel
+            libxkbcommon-devel
           args: ${{ env.MATURIN_BUILD_ARGS }} -i python${{ matrix.python-version }}
 
       - name: Install and import wheel
@@ -253,6 +262,19 @@ jobs:
           maturin-version: v${{ env.MATURIN_VERSION }}
           command: sdist
           args: --out dist
+
+      - name: Install Linux native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ \
+            pkg-config \
+            libx11-dev \
+            libasound2-dev \
+            libudev-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
 
       - name: Prove sdist builds
         run: |

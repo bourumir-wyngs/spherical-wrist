@@ -30,6 +30,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "maturin[patchelf]==${MATURIN_VERSION}" packaging pytest twine
 
+      - name: Install Linux native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ \
+            pkg-config \
+            libx11-dev \
+            libasound2-dev \
+            libudev-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
+
       - name: Build and check release artifacts
         run: |
           python scripts/check_release_artifacts.py build --compatibility linux
