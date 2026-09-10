@@ -77,7 +77,7 @@ def main() -> None:
     # Initial position of the robot
     start = (20, 50.0, 90, 180, -40, 122)
     # The planner will safely move from "start" to "land"
-    # "land" is normally where the tool is activated so there is a special flag
+    # "land" is normally where the tool is activated, so there is a special flag
     # "landing" is present in movement between landing pose and stroke (tool warming up)
     land = tcp_pose(1.50, 0.0, 1.6, 0)
     yy = 0.0
@@ -98,11 +98,11 @@ def main() -> None:
         tcp_pose(1.50, 0.0, 2.0, zz, -yy, -xx),
 
         # Top rectangle: 0.05 m inset on each side, 0.10 m above the middle one.
-        tcp_pose(1.45, 0.05, 2.1, zz, -yy, -xx),
-        tcp_pose(1.05, 0.05, 2.1, zz, -yy, -xx),
-        tcp_pose(1.05, 1.10, 2.1, zz, -yy, -xx),
-        tcp_pose(1.45, 1.10, 2.1, zz, -yy, -xx),
-        tcp_pose(1.45, 0.05, 2.1, zz, -yy, -xx),
+        tcp_pose(1.45, 0.05, 2.1, -zz, yy, xx),
+        tcp_pose(1.05, 0.05, 2.1, -zz, yy, xx),
+        tcp_pose(1.05, 1.10, 2.1, -zz, yy, xx),
+        tcp_pose(1.45, 1.10, 2.1, -zz, yy, xx),
+        tcp_pose(1.45, 0.05, 2.1, -zz, yy, xx),
     ]
     # "Post last" position with special flag to deactivate the tool
     park = land
