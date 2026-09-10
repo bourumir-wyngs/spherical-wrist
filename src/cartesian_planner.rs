@@ -5,7 +5,7 @@ use super::*;
 /// The planner finds a collision-free path that enters a Cartesian stroke,
 /// follows the requested TCP poses, can bridge infeasible stroke segments with
 /// joint-space RRT reconfiguration, and exits at the park pose.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct CartesianPlanner {
     check_step_m: f64,

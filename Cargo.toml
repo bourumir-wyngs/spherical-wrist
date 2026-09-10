@@ -1,6 +1,6 @@
 [package]
 name = "spherical-wrist"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 license = "BSD-3-Clause"
 
@@ -9,8 +9,8 @@ name = "spherical_wrist"
 crate-type = ["cdylib"]
 
 [dependencies]
-glam = "=0.30.10"
-parry3d = "0.26"
+glam = "=0.32.1"
+parry3d = "0.27"
 pyo3 = "0.29"
-rs-opw-kinematics = { version = "2.0.3", default-features = false, features = ["stroke_planning", "visualization"] }
-rs-read-trimesh = { version = "2.0.9", default-features = false, features = ["use-parry-26"]  }
+rs-opw-kinematics = { version = "3", default-features = false, features = ["stroke_planning", "visualization"] }
+rs-read-trimesh = { version = "= 2.0.10", features = ["use-parry-27"], default-features = false }

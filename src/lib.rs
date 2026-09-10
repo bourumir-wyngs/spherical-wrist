@@ -18,7 +18,7 @@ use rs_opw_kinematics::frame::{Frame as RsFrame, FrameTransform as RsFrameTransf
 use rs_opw_kinematics::jacobian::Jacobian as RsJacobian;
 use rs_opw_kinematics::kinematic_traits::{
     CONSTRAINT_CENTERED, ENV_START_IDX, J_BASE, J_TOOL, J1, J2, J3, J4, J5, J6, Joints, Kinematics,
-    Pose, Singularity,
+    Pose
 };
 use rs_opw_kinematics::kinematics_impl::OPWKinematics;
 use rs_opw_kinematics::kinematics_with_shape::KinematicsWithShape as RsKinematicsWithShape;

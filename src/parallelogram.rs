@@ -6,7 +6,7 @@ use super::*;
 /// specific joints, typically to maintain the orientation of the end-effector as
 /// the robot arm moves. The movement of `joints[driven]` influences
 /// `joints[coupled]`, and `scaling` determines the proportional influence.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone, Copy)]
 pub(crate) struct Parallelogram {
     pub(crate) scaling: f64,

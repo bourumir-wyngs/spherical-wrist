@@ -5,7 +5,7 @@ use super::*;
 ///
 /// Some robot joints may come very close together, so they may require special
 /// per-pair distances.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct SafetyDistances {
     safety: RsSafetyDistances,

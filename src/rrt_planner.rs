@@ -2,7 +2,7 @@ use super::*;
 
 /// RRT planner that relocates the robot between two positions in a
 /// collision-free way.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone, Copy)]
 pub(crate) struct RRTPlanner {
     step_size_joint_space: f64,

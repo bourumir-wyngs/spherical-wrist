@@ -242,16 +242,6 @@ impl Robot {
             })
             .collect()
     }
-
-    #[pyo3(signature = (joints))]
-    fn kinematic_singularity(&self, joints: [f64; 6]) -> PyResult<Option<String>> {
-        let joints = joints_to_internal(joints, self.degrees)?;
-        let robot = self.build_robot(None)?;
-
-        Ok(robot
-            .kinematic_singularity(&joints)
-            .map(|Singularity::A| "A".to_string()))
-    }
 }
 
 impl Robot {

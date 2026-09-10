@@ -4,7 +4,7 @@ use super::*;
 ///
 /// These are OPW geometric parameters, joint offsets, and joint direction
 /// corrections used to construct an OPW kinematics solver.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct KinematicModel {
     a1: f64,
