@@ -96,6 +96,13 @@ def main() -> None:
         tcp_pose(1.00, 1.15, 2.0, zz, -yy, -xx),
         tcp_pose(1.50, 1.15, 2.0, zz, -yy, -xx),
         tcp_pose(1.50, 0.0, 2.0, zz, -yy, -xx),
+
+        # Top rectangle: 0.05 m inset on each side, 0.10 m above the middle one.
+        tcp_pose(1.45, 0.05, 2.1, zz, -yy, -xx),
+        tcp_pose(1.05, 0.05, 2.1, zz, -yy, -xx),
+        tcp_pose(1.05, 1.10, 2.1, zz, -yy, -xx),
+        tcp_pose(1.45, 1.10, 2.1, zz, -yy, -xx),
+        tcp_pose(1.45, 0.05, 2.1, zz, -yy, -xx),
     ]
     # "Post last" position with special flag to deactivate the tool
     park = land
