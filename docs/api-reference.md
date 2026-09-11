@@ -112,7 +112,6 @@ Main methods:
 - `inverse_5dof(pose, j6=0.0, tool=None, ee_transform=None)`
 - `inverse_continuing_5dof(pose, previous_joints, tool=None, ee_transform=None)`
 - `forward_with_joint_poses(joints)`
-- `kinematic_singularity(joints)`
 
 `frame` accepts either a SciPy `RigidTransform` or `Frame.from_tie(...)`.
 Base and tool transforms are rigid. A `Frame` may include uniform scale and is

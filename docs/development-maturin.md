@@ -37,6 +37,21 @@ maturin develop --release --extras test
 
 ## Test
 
+Run the Rust unit tests for matrix validation, numeric conversions, and joint
+validation:
+
+```bash
+env -u PYTHONPATH PYO3_PYTHON="$PWD/.venv/bin/python" cargo test --locked --lib
+```
+
+The tests inspect Python exceptions, so they need a Python installation with
+development libraries and the same native build dependencies as the extension.
+Run Cargo directly without enabling `pyo3/extension-module`; Maturin enables that
+feature when building the Python extension. Rust tests run on pull requests and
+pushes to `master`, and must pass before release artifact builds start.
+
+Run the Python tests against the installed extension:
+
 ```bash
 env -u PYTHONPATH PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/pytest -q
 ```

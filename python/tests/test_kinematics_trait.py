@@ -1,11 +1,23 @@
-from spherical_wrist import CONSTRAINT_CENTERED, KinematicModel, Robot
+from spherical_wrist import (
+    CONSTRAINT_CENTERED,
+    KinematicModel,
+    KinematicsWithShape,
+    Mesh,
+    NEVER_COLLIDES,
+    Robot,
+    SafetyDistances,
+)
 from scipy.spatial.transform import RigidTransform, Rotation
 import numpy as np
+import pytest
 
 
-def test_forward_with_joint_poses_and_singularity_use_robot_units() -> None:
-    robot = Robot(_model(), degrees=True)
+@pytest.mark.parametrize("degrees", [True, False], ids=["degrees", "radians"])
+def test_forward_with_joint_poses_uses_robot_units(degrees: bool) -> None:
+    robot = Robot(_model(), degrees=degrees)
     joints = (10.0, 20.0, -70.0, 30.0, 0.0, 10.0)
+    if not degrees:
+        joints = tuple(np.deg2rad(joints))
 
     poses = robot.forward_with_joint_poses(joints)
 
@@ -15,8 +27,52 @@ def test_forward_with_joint_poses_and_singularity_use_robot_units() -> None:
         robot.forward(joints).as_matrix(),
         atol=1e-10,
     )
-    assert robot.kinematic_singularity(joints) == "A"
-    assert robot.kinematic_singularity((10.0, 20.0, -70.0, 30.0, 20.0, 10.0)) is None
+
+
+@pytest.mark.parametrize("shaped", [False, True], ids=["robot", "shaped-robot"])
+@pytest.mark.parametrize("degrees", [True, False], ids=["degrees", "radians"])
+@pytest.mark.parametrize("j5", [0.0, 180.0, -180.0])
+def test_wrist_singularity_recovery_preserves_pose_and_continuity(
+    shaped: bool, degrees: bool, j5: float
+) -> None:
+    if shaped:
+        mesh = Mesh.from_arrays(
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            [(0, 1, 2)],
+        )
+        robot = KinematicsWithShape(
+            _model(),
+            [mesh] * 6,
+            degrees=degrees,
+            safety=SafetyDistances(
+                to_environment=NEVER_COLLIDES,
+                to_robot_default=NEVER_COLLIDES,
+            ),
+        )
+    else:
+        robot = Robot(_model(), degrees=degrees)
+
+    joints = (10.0, 20.0, -70.0, 30.0, j5, 10.0)
+    if not degrees:
+        joints = tuple(np.deg2rad(joints))
+    pose = robot.forward(joints)
+
+    solutions = robot.inverse(pose)
+    continuing = robot.inverse_continuing(pose, joints)
+
+    assert solutions
+    assert continuing
+    # Recover the original arm configuration without prescribing free wrist angles.
+    assert any(
+        np.allclose(solution[:3], joints[:3], atol=1e-8, rtol=0)
+        for solution in solutions
+    )
+    # A continuation at the same pose should preserve the supplied wrist angles.
+    np.testing.assert_allclose(continuing[0], joints, atol=1e-8, rtol=0)
+    for solution in solutions + continuing:
+        np.testing.assert_allclose(
+            robot.forward(solution).as_matrix(), pose.as_matrix(), atol=1e-9, rtol=0
+        )
 
 
 def test_inverse_continuing_and_constraint_centered_are_exposed() -> None:

@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) fn joint_mesh_array(meshes: Vec<Mesh>) -> PyResult<[TriMesh; 6]> {
     if meshes.len() != 6 {
         return Err(PyValueError::new_err(

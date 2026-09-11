@@ -50,9 +50,14 @@ jobs:
                   f"Release tag {actual!r} does not match package version {expected!r}"
               )
 
+  rust-tests:
+    name: Rust unit tests
+    needs: preflight
+    uses: ./.github/workflows/rust-tests.yml
+
   linux-x86_64:
     name: manylinux x86_64 py${{ matrix.python-version }}
-    needs: preflight
+    needs: rust-tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -121,7 +126,7 @@ jobs:
 
   windows-x86_64:
     name: Windows x86_64 py${{ matrix.python-version }}
-    needs: preflight
+    needs: rust-tests
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -180,7 +185,7 @@ jobs:
 
   macos:
     name: macOS ${{ matrix.platform.arch }} py${{ matrix.python-version }}
-    needs: preflight
+    needs: rust-tests
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -246,7 +251,7 @@ jobs:
 
   sdist:
     name: sdist
-    needs: preflight
+    needs: rust-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

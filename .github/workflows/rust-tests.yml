@@ -1,0 +1,60 @@
+name: Rust Unit Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-tests:
+    name: Rust unit tests
+    runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      PYTHONPATH: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Rust
+        id: rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          echo "version=$(rustc +stable --version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Rust dependencies and build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/debug
+          key: ${{ runner.os }}-rust-tests-py312-${{ steps.rust.outputs.version }}-${{ hashFiles('Cargo.lock', 'Cargo.toml') }}
+
+      - name: Install Linux native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ \
+            pkg-config \
+            libx11-dev \
+            libasound2-dev \
+            libudev-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
+
+      - name: Run Rust unit tests
+        run: |
+          PYO3_PYTHON="$(command -v python)" cargo +stable test --locked --lib

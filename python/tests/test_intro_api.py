@@ -39,7 +39,8 @@ def test_introductory_readme_example() -> None:
 
     solutions = robot.inverse(pose, ee_transform=ee_transform)
 
-    assert len(solutions) == 2
+    assert solutions
+    assert any(np.allclose(solution, joints, atol=1e-8, rtol=0) for solution in solutions)
     for solution in solutions:
         solution_pose = robot.forward(solution, ee_transform=ee_transform)
         assert np.allclose(solution_pose.as_matrix(), pose.as_matrix(), atol=1e-9)

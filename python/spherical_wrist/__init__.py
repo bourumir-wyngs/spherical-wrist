@@ -464,10 +464,6 @@ class Robot:
             np.asarray(self._robot.forward_with_joint_poses(joints, tool_matrix))
         )
 
-    def kinematic_singularity(self, joints: Joints) -> Optional[str]:
-        """Return the singularity kind, currently ``"A"``, or ``None``."""
-        return self._robot.kinematic_singularity(joints)
-
 
 class KinematicsWithShape:
     """Robot kinematics with collision geometry."""
@@ -587,10 +583,6 @@ class KinematicsWithShape:
         return RigidTransform.from_matrix(
             np.asarray(self._robot.forward_with_joint_poses(joints))
         )
-
-    def kinematic_singularity(self, joints: Joints) -> Optional[str]:
-        """Return the singularity kind, currently ``"A"``, or ``None``."""
-        return self._robot.kinematic_singularity(joints)
 
     def collides(self, joints: Joints) -> bool:
         """Return whether this joint configuration collides or violates safety."""

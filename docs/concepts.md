@@ -26,9 +26,13 @@ Use `Robot` for kinematics only:
 - `inverse_continuing`
 - `inverse_5dof`
 - `forward_with_joint_poses`
-- `kinematic_singularity`
 
 `Robot` does not know about meshes, self-collision, or environment objects.
+
+Wrist singularities are handled by the inverse solver. Use
+`inverse_continuing(pose, previous_joints)` to preserve joint continuity near
+singularities; the separate `kinematic_singularity` classifier was removed in
+the migration to rs-opw-kinematics 3.0.
 
 ## `KinematicsWithShape`
 
