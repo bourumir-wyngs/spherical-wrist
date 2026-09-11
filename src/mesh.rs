@@ -1,6 +1,6 @@
 use super::*;
 
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct Mesh {
     mesh: Arc<TriMesh>,

@@ -5,7 +5,7 @@ use super::*;
 ///
 /// The frame can be created from three pairs of tie points: one triplet defining
 /// original trajectory points and another triplet defining target points.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone, Copy)]
 pub(crate) struct Frame {
     frame: RsFrameTransform,

@@ -1,7 +1,7 @@
 use super::*;
 
 /// Annotated joints specifying the position flags and movement type into this position.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone)]
 pub(crate) struct AnnotatedJoints {
     pub(crate) joints: [f64; 6],

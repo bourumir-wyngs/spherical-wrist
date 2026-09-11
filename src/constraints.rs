@@ -5,7 +5,7 @@ use super::*;
 /// Wrapping around zero is supported, so limit order is important. The
 /// `sorting_weight` controls whether inverse-kinematics solutions are sorted
 /// closer to previous joints or closer to the middle of these constraints.
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 #[derive(Clone, Copy)]
 pub(crate) struct Constraints {
     constraints: RsConstraints,

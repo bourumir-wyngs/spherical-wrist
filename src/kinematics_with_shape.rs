@@ -243,16 +243,6 @@ impl KinematicsWithShape {
     }
 
     #[pyo3(signature = (joints))]
-    fn kinematic_singularity(&self, joints: [f64; 6]) -> PyResult<Option<String>> {
-        let joints = joints_to_internal(joints, self.degrees)?;
-
-        Ok(self
-            .robot
-            .kinematic_singularity(&joints)
-            .map(|Singularity::A| "A".to_string()))
-    }
-
-    #[pyo3(signature = (joints))]
     fn collides(&self, py: Python<'_>, joints: [f64; 6]) -> PyResult<bool> {
         let joints = joints_to_internal(joints, self.degrees)?;
         Ok(py.detach(|| self.robot.collides(&joints)))
