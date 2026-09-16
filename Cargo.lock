@@ -5052,11 +5052,12 @@ dependencies = [
 
 [[package]]
 name = "spherical-wrist"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "glam",
  "parry3d",
  "pyo3",
+ "rayon",
  "rs-opw-kinematics",
  "rs-read-trimesh",
 ]

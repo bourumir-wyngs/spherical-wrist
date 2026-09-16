@@ -74,6 +74,8 @@ The same script is in [python/examples/readme_intro.py](https://github.com/bouru
 - continuing inverse kinematics that handles wrist singularities with a
   previous joint position
 - optional joint constraints and solution ranking
+- bulk inverse kinematics, optionally filtering solutions against constraints and collision geometry.
+  This method is parallelized, all solutions are returned for each pose
 - 5-DOF inverse kinematics for tools that do not care about J6 rotation
 - base, tool, frame, and parallelogram transforms
 - mesh loading and collision/proximity checks
@@ -135,6 +137,10 @@ Arm and wrist singularities can occur together.
 
 The most useful examples are:
 
+- [bulk_inverse.py](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/bulk_inverse.py): converts pose stacks
+  with both robot types using the bundled RX160 meshes, applies constraints and
+  collision filtering, and processes large inputs in chunks without opening a
+  window.
 - [cartesian_stroke.py](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/python/examples/cartesian_stroke.py): builds a shaped
   Staubli RX160 robot, plans a Cartesian TCP stroke, annotates the path, and
   plays it in the visualization window.
@@ -144,6 +150,7 @@ The most useful examples are:
 Run them with:
 
 ```bash
+python python/examples/bulk_inverse.py
 python python/examples/cartesian_stroke.py
 python python/examples/path_planning_rrt.py
 ```
@@ -197,6 +204,7 @@ Windows:
 - [Core Concepts](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/concepts.md)
 - [Robot Models](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/robots.md)
 - [Transforms And Units](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/transforms-and-units.md)
+- [Bulk Inverse Kinematics](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/bulk-inverse.md)
 - [Jacobian](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/jacobian.md)
 - [Meshes And Collisions](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/meshes-and-collisions.md)
 - [Path Planning](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/path-planning.md)
@@ -220,6 +228,12 @@ kinematics for all roboto joints, not only the tool-tip pose.
 
 Use `KinematicsWithShape` when robot geometry matters: collision checks,
 distance queries, path planning, or visualization.
+
+Use `inverse_multiple` on either robot type to convert large stacks of SciPy
+`RigidTransform` poses to a list of solution lists. Each pose is solved
+independently in parallel; constraints and the shaped robot's collision policy
+filter its solutions. See the
+[bulk conversion guide](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/bulk-inverse.md).
 
 Use `RRTPlanner` when you want to move the robot between the two known poses.
 It plans a collision-free joint-space path between them and can

@@ -38,6 +38,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 mod annotated_joints;
+mod bulk_inverse;
 mod cartesian_planner;
 mod constraints;
 mod frame;
@@ -71,6 +72,7 @@ const RADIANS_PER_DEGREE: f64 = std::f64::consts::PI / 180.0;
 
 #[pymodule(name = "_internal")]
 fn spherical_wrist(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("BatchPoseError", m.py().get_type::<bulk_inverse::BatchPoseError>())?;
     m.add("BY_PREV", BY_PREV)?;
     m.add("BY_CONSTRAINTS", BY_CONSTRAINS)?;
     m.add("CONSTRAINT_CENTERED", CONSTRAINT_CENTERED)?;

@@ -23,11 +23,16 @@ Use `Robot` for kinematics only:
 
 - `forward`
 - `inverse`
+- `inverse_multiple`
 - `inverse_continuing`
 - `inverse_5dof`
 - `forward_with_joint_poses`
 
 `Robot` does not know about meshes, self-collision, or environment objects.
+
+Use `inverse_multiple` for many independent TCP poses. It returns one list of
+constraint-filtered joint solutions per pose, solving in parallel in Rust while
+releasing the GIL. See [Bulk Inverse Kinematics](bulk-inverse.md).
 
 Wrist singularities are handled by the inverse solver. Use
 `inverse_continuing(pose, previous_joints)` to preserve joint continuity near
@@ -46,8 +51,9 @@ Use `KinematicsWithShape` when geometry matters. It combines:
 - optional constraints
 - optional safety distances
 
-Its IK methods filter out colliding solutions. Path planning and visualization
-use this type.
+Its IK methods, including `inverse_multiple`, filter out colliding solutions
+according to the configured safety policy. Path planning and visualization use
+this type.
 
 ## `Mesh`
 

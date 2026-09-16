@@ -12,6 +12,7 @@ Task guides:
 
 - [Robot Models](robots.md)
 - [Transforms And Units](transforms-and-units.md)
+- [Bulk Inverse Kinematics](bulk-inverse.md)
 - [Jacobian](jacobian.md)
 - [Meshes And Collisions](meshes-and-collisions.md)
 - [Path Planning](path-planning.md)

@@ -24,6 +24,20 @@ Python API.
 `basic.py`
 : More complete singularity and 5-DOF IK demonstration.
 
+`bulk_inverse.py`
+: Parallel Rust `inverse_multiple` for both `Robot` and `KinematicsWithShape`,
+including joint constraints, environment collision filtering, and chunked pose
+stacks. Uses `create_rx160_robot` from `_common.py` with the bundled RX160 link,
+base, tool, and environment meshes, plus a matching `Robot` for comparison.
+Runs without a window. For example:
+
+```bash
+python python/examples/bulk_inverse.py --count 10000 --chunk-size 2000
+```
+
+See [Bulk Inverse Kinematics](../../docs/bulk-inverse.md) for the result format,
+GIL behavior, and Rayon thread configuration.
+
 ## Important Planning Examples
 
 `cartesian_stroke.py`

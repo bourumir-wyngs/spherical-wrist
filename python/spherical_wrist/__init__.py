@@ -18,6 +18,7 @@ from scipy.spatial.transform import RigidTransform
 
 from ._internal import BY_CONSTRAINTS
 from ._internal import BY_PREV
+from ._internal import BatchPoseError
 from ._internal import CHECK_MODE_ALL
 from ._internal import CHECK_MODE_FIRST_COLLISION_ONLY
 from ._internal import CHECK_MODE_NO_CHECK
@@ -378,6 +379,45 @@ class Robot:
         solutions = self._robot.inverse(pose.as_matrix(), current_joints, tool_matrix)
         return [cast(Joints, tuple(solution)) for solution in solutions]
 
+    def inverse_multiple(
+        self,
+        poses: RigidTransform | Sequence[RigidTransform],
+        ee_transform: Optional[RigidTransform] = None,
+        *,
+        tool: Optional[RigidTransform] = None,
+    ) -> list[list[Joints]]:
+        """
+        Compute constraint-filtered inverse kinematics for a batch of TCP poses.
+
+        Rust solves the poses in parallel with Rayon while releasing the Python
+        GIL. Prefer a SciPy ``RigidTransform`` stack for large batches: its
+        matrices pass to Rust as one contiguous float64 array without a Python
+        loop over poses. All results are materialized; process huge inputs in
+        chunks when the resulting Python joint tuples would exceed memory.
+
+        :param poses: A ``RigidTransform`` stack with matrix shape ``(n, 4, 4)``,
+            a sequence of individual ``RigidTransform`` objects, or one pose.
+            Translations use the same distance unit as the robot model.
+        :param ee_transform: Optional per-call flange-to-TCP transform shared
+            by all poses. This is a compatibility alias for ``tool``.
+        :param tool: Optional per-call flange-to-TCP transform shared by all
+            poses.
+        :return: One list of six-joint tuples per input pose, in input order.
+            Each pose is solved independently as in ``inverse(pose)`` with no
+            current joint configuration. Joint values follow this robot's
+            ``degrees`` setting. Each list is empty if no solution satisfies
+            the constraints. Empty input returns ``[]``; a single pose returns
+            a one-element outer list.
+        :raises BatchPoseError: If Rust rejects a pose matrix. ``pose_index``
+            gives its zero-based index within this batch.
+        """
+        tool_transform = _resolve_tool(tool=tool, ee_transform=ee_transform)
+        tool_matrix = None if tool_transform is None else tool_transform.as_matrix()
+        return cast(
+            list[list[Joints]],
+            self._robot.inverse_multiple(_pose_matrices(poses), tool_matrix),
+        )
+
     def inverse_continuing(
         self,
         pose: RigidTransform,
@@ -547,6 +587,37 @@ class KinematicsWithShape:
         """Compute collision-filtered inverse kinematics for a TCP pose."""
         solutions = self._robot.inverse(pose.as_matrix(), current_joints)
         return [cast(Joints, tuple(solution)) for solution in solutions]
+
+    def inverse_multiple(
+        self,
+        poses: RigidTransform | Sequence[RigidTransform],
+    ) -> list[list[Joints]]:
+        """
+        Compute constraint- and collision-filtered inverse kinematics in bulk.
+
+        Each pose uses the same constraints, collision geometry, and safety
+        settings as ``inverse``. Rust solves poses in parallel with Rayon while
+        releasing the Python GIL. Prefer a SciPy ``RigidTransform`` stack for
+        large batches to pass one contiguous float64 matrix array to Rust
+        without a Python loop over poses. All results are materialized; process
+        huge inputs in chunks to bound memory use.
+
+        :param poses: A ``RigidTransform`` stack with matrix shape ``(n, 4, 4)``,
+            a sequence of individual ``RigidTransform`` objects, or one pose.
+            Translations use the same distance unit as the model and meshes.
+        :return: One list of six-joint tuples per input pose, in input order
+            and with the same solution order as ``inverse(pose)`` with no
+            current joint configuration. Each pose is solved independently;
+            joint values follow this robot's ``degrees`` setting. A pose with
+            no valid solution has an empty list. Empty input returns ``[]``;
+            a single pose returns a one-element outer list.
+        :raises BatchPoseError: If Rust rejects a pose matrix. ``pose_index``
+            gives its zero-based index within this batch.
+        """
+        return cast(
+            list[list[Joints]],
+            self._robot.inverse_multiple(_pose_matrices(poses)),
+        )
 
     def inverse_continuing(
         self,
@@ -1100,6 +1171,30 @@ def _vector6(
     )
 
 
+def _pose_matrices(poses: RigidTransform | Sequence[RigidTransform]) -> np.ndarray:
+    if isinstance(poses, RigidTransform):
+        matrices = poses.as_matrix()
+        if matrices.shape == (4, 4):
+            matrices = matrices.reshape(1, 4, 4)
+    else:
+        if not isinstance(poses, Sequence):
+            raise TypeError("poses must be a RigidTransform or a sequence of poses")
+        if len(poses) == 0:
+            return np.empty((0, 4, 4), dtype=np.float64)
+        individual_matrices = []
+        for pose in poses:
+            if not isinstance(pose, RigidTransform):
+                raise TypeError("each pose must be a scipy RigidTransform")
+            matrix = pose.as_matrix()
+            if matrix.shape != (4, 4):
+                raise ValueError("each pose in a sequence must be a single transform")
+            individual_matrices.append(matrix)
+        matrices = np.stack(individual_matrices)
+    if matrices.ndim != 3 or matrices.shape[1:] != (4, 4):
+        raise ValueError("poses must have matrix shape (n, 4, 4)")
+    return np.ascontiguousarray(matrices, dtype=np.float64)
+
+
 def _resolve_tool(
     *,
     tool: Optional[RigidTransform],
@@ -1164,6 +1259,7 @@ def _without_final_park(path: list[AnnotatedJoints]) -> list[AnnotatedJoints]:
 
 __all__ = [
     "AnnotatedJoints",
+    "BatchPoseError",
     "BY_CONSTRAINTS",
     "BY_PREV",
     "CHECK_MODE_ALL",
