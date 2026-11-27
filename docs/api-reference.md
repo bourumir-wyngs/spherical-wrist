@@ -29,6 +29,11 @@ Python wrapper docstrings for exact signatures.
 
 `Constraints`
 : Joint limits and IK sorting preference.
+  Starting with version 0.0.4, ranges wider than 360° define absolute limits on joint 
+  travel. This supports joints that can rotate through multiple yet limited number of turns.
+  Use a range of exactly 360° (for example, `-180°` to `180°`) for an
+  unrestricted joint, or exactly `2 * pi` radians with `radians=True`.
+  See [Joint Constraints](quickstart.md#joint-constraints) for an example.
 
 `SafetyDistances`
 : Collision/proximity policy for robot, tool, base, and environment pairs.

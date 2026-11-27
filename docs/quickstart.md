@@ -75,6 +75,12 @@ solutions = robot.inverse_continuing(pose, CONSTRAINT_CENTERED)
 
 Constraints filter IK results and can also affect sorting.
 
+Starting with version 0.0.4, joint constraint ranges larger than 360° are
+absolute limits: the joint angle must stay within the specified bounds,
+including its number of turns. For an unrestricted joint, set the range to
+exactly 360°, for example from `-180°` to `180°`. With `radians=True`, the
+equivalent unrestricted range is exactly `2 * pi` radians.
+
 ```python
 from spherical_wrist import BY_PREV, Constraints, Robot
 
@@ -86,6 +92,9 @@ constraints = Constraints(
 
 robot = Robot(model, degrees=True, constraints=constraints)
 ```
+
+In this example, J1 and J4 are unrestricted because their ranges are exactly
+360°. J6 has an absolute limit from `-360°` to `360°` (a 720° range).
 
 See [Transforms And Units](transforms-and-units.md) for pose conventions and
 [Path Planning](path-planning.md) for collision-aware movement.

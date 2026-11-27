@@ -54,6 +54,11 @@ Common causes:
 Try plain `Robot` first. Then add constraints. Then add shape and collision
 checks.
 
+Starting with version 0.0.4, constraint ranges larger than 360° impose absolute
+limits. If a joint should be unrestricted, set its range to exactly 360°
+(for example, `-180°` to `180°`). See
+[Joint Constraints](quickstart.md#joint-constraints).
+
 ## Planner Fails
 
 - Use the visualization tool first to check if the robot shape is properly interpreted.

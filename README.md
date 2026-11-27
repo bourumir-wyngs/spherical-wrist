@@ -82,6 +82,11 @@ The same script is in [python/examples/readme_intro.py](https://github.com/bouru
 - Cartesian stroke planning with annotated path segments
 - Bevy-based visualization and path playback
 
+Starting with version 0.0.4, joint constraint ranges larger than 360° are
+absolute limits. For an unrestricted joint, set the range to exactly 360°
+(for example, `-180°` to `180°`). See
+[Joint Constraints](https://github.com/bourumir-wyngs/spherical-wrist/blob/master/docs/quickstart.md#joint-constraints).
+
 ## Main Examples
 
 The most useful examples are:
