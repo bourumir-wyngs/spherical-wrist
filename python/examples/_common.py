@@ -121,7 +121,6 @@ def create_rx160_robot(
     *,
     first_collision_only: bool = False,
     flag_mesh: str = "flag.ply",
-    j6_limit: float = 360.0,
 ) -> KinematicsWithShape:
     """
     Build the shaped RX160 robot used by visualization and path planning examples.
@@ -142,9 +141,12 @@ def create_rx160_robot(
     ]
 
     mode = CHECK_MODE_FIRST_COLLISION_ONLY if first_collision_only else CHECK_MODE_ALL
+    # Exactly 360 degrees of range makes all joints unrestricted.
+    # Narrower range sets the validity range that repeats at full turn around.
+    # Wider range sets the validity range that does not repeat.
     constraints = Constraints(
-        (-225.0, -225.0, -225.0, -225.0, -225.0, -j6_limit),
-        (225.0, 225.0, 225.0, 225.0, 225.0, j6_limit),
+        (-180.0, -180.0, -180.0, -180.0, -180.0, -180.0),
+        (180.0, 180.0, 180.0, 180.0, 180.0, 180.0),
         sorting_weight=BY_PREV,
     )
     safety = SafetyDistances(

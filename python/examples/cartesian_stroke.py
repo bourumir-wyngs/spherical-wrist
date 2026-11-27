@@ -53,7 +53,6 @@ def main() -> None:
     robot = create_rx160_robot(
         first_collision_only=True,
         flag_mesh="flag.stl",
-        j6_limit=225.0,
     )
 
     def pose(joints):
