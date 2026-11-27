@@ -154,6 +154,35 @@ impl Robot {
         Ok(solutions_from_internal(solutions, self.degrees))
     }
 
+    /// Solve independent TCP poses in parallel, retaining all constrained solutions.
+    #[pyo3(signature = (poses, ee_transform=None, gantry_translation=None, linear_axis_distance=None))]
+    fn inverse_multiple(
+        &self,
+        py: Python<'_>,
+        poses: &Bound<'_, PyAny>,
+        ee_transform: Option<[[f64; 4]; 4]>,
+        gantry_translation: Option<[f64; 3]>,
+        linear_axis_distance: Option<f64>,
+    ) -> PyResult<Vec<Vec<bulk_inverse::JointTuple>>> {
+        // Build transforms once per batch, not once per pose.
+        let robot = self.build_robot(ee_transform)?;
+        let linear_axis = self
+            .linear_axis_transform(linear_axis_distance)?
+            .map(|pose| pose.inverse());
+        let gantry = self
+            .gantry_transform(gantry_translation)?
+            .map(|pose| pose.inverse());
+        bulk_inverse::inverse_multiple(py, poses, robot.as_ref(), self.degrees, |mut pose| {
+            if let Some(linear_axis) = linear_axis {
+                pose = linear_axis * pose;
+            }
+            if let Some(gantry) = gantry {
+                pose = gantry * pose;
+            }
+            pose
+        })
+    }
+
     #[pyo3(signature = (pose, previous_joints, ee_transform=None, gantry_translation=None, linear_axis_distance=None))]
     fn inverse_continuing(
         &self,

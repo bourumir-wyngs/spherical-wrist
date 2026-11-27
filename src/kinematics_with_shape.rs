@@ -190,6 +190,16 @@ impl KinematicsWithShape {
         Ok(solutions_from_internal(solutions, self.degrees))
     }
 
+    /// Solve independent TCP poses in parallel with constraints and collision checks.
+    #[pyo3(signature = (poses))]
+    fn inverse_multiple(
+        &self,
+        py: Python<'_>,
+        poses: &Bound<'_, PyAny>,
+    ) -> PyResult<Vec<Vec<bulk_inverse::JointTuple>>> {
+        bulk_inverse::inverse_multiple(py, poses, &self.robot, self.degrees, |pose| pose)
+    }
+
     #[pyo3(signature = (pose, previous_joints))]
     fn inverse_continuing(
         &self,

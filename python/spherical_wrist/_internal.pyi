@@ -44,6 +44,12 @@ MOVE_KIND_JOINT: str
 MOVE_KIND_CARTESIAN: str
 
 
+class BatchPoseError(ValueError):
+    """A rejected pose matrix, with a zero-based index within its input batch."""
+
+    pose_index: int
+
+
 class KinematicModel:
     a1: float
     a2: float
@@ -194,6 +200,11 @@ class KinematicsWithShape:
         pose: Matrix4,
         current_joints: Optional[Joints] = None,
     ) -> List[Joints]: ...
+
+    def inverse_multiple(
+        self,
+        poses: npt.NDArray[np.float64],
+    ) -> List[List[Joints]]: ...
 
     def inverse_continuing(
         self,
@@ -389,6 +400,14 @@ class Robot:
         current_joints: Optional[Joints] = None,
         ee_transform: Optional[Matrix4] = None,
     ) -> List[Joints]: ...
+
+    def inverse_multiple(
+        self,
+        poses: npt.NDArray[np.float64],
+        ee_transform: Optional[Matrix4] = None,
+        gantry_translation: Optional[Point3] = None,
+        linear_axis_distance: Optional[float] = None,
+    ) -> List[List[Joints]]: ...
 
     def inverse_continuing(
         self,

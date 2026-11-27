@@ -53,6 +53,14 @@ Python wrapper docstrings for exact signatures.
 `Jacobian`
 : Numerical 6x6 TCP Jacobian for one robot joint configuration.
 
+`BatchPoseError`
+: `ValueError` subclass raised when bulk inverse validation rejects a pose
+  matrix. Its integer `pose_index` is the zero-based index in the supplied
+  batch; `__cause__` is the original validation `ValueError`. Import it from
+  `spherical_wrist`. If several poses are invalid, parallel validation may
+  report any one of their indices. Whole-batch shape and type errors remain
+  ordinary `ValueError` or `TypeError` exceptions without `pose_index`.
+
 ## Constants
 
 Joint and collision object angle indices in a pose array:
@@ -113,6 +121,7 @@ Main methods:
 
 - `forward(joints, tool=None, ee_transform=None)`
 - `inverse(pose, current_joints=None, tool=None, ee_transform=None)`
+- `inverse_multiple(poses, ee_transform=None, *, tool=None)`
 - `inverse_continuing(pose, previous_joints, tool=None, ee_transform=None)`
 - `inverse_5dof(pose, j6=0.0, tool=None, ee_transform=None)`
 - `inverse_continuing_5dof(pose, previous_joints, tool=None, ee_transform=None)`
@@ -121,6 +130,16 @@ Main methods:
 `frame` accepts either a SciPy `RigidTransform` or `Frame.from_tie(...)`.
 Base and tool transforms are rigid. A `Frame` may include uniform scale and is
 applied to the final TCP pose.
+
+`inverse_multiple` accepts a SciPy `RigidTransform` stack or a sequence of
+transforms and returns `list[list[Joints]]`, with one list of constraint-filtered
+solutions per input pose. A single transform produces one output list; an empty
+sequence returns `[]`. Empty per-pose lists represent targets with no valid
+solutions. Every pose is solved independently using the behavior of
+`inverse(pose)` with its default `current_joints=None`. Solving runs in parallel
+in Rust with the GIL released. See
+[Bulk Inverse Kinematics](bulk-inverse.md) for input examples, memory usage,
+and handling `BatchPoseError` by pose index.
 
 ## `Frame`
 
@@ -167,6 +186,7 @@ Main methods:
 
 - `forward`
 - `inverse`
+- `inverse_multiple(poses)`
 - `inverse_continuing`
 - `inverse_5dof`
 - `inverse_continuing_5dof`
@@ -177,6 +197,11 @@ Main methods:
 - `non_colliding_offsets`
 - `positioned_robot`
 - `visualize`
+
+`inverse_multiple` uses the same input and output format as the `Robot` method
+and additionally filters solutions using the shaped robot's configured
+collision and safety policy. Setting safety mode to `"no_check"` disables
+collision checks, as it does for scalar `inverse`.
 
 ## Planners
 

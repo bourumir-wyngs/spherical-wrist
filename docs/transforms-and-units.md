@@ -50,6 +50,11 @@ pose = RigidTransform.from_components(
 )
 ```
 
+For `inverse_multiple`, use a `RigidTransform` stack constructed from matrices
+of shape `(n, 4, 4)`, or a sequence of individual transforms. The method returns
+one list of joint solutions per pose. See
+[Bulk Inverse Kinematics](bulk-inverse.md) for examples and chunking large inputs.
+
 ## Tool Transform
 
 The tool transform is the flange-to-TCP transform. If the same tool is always

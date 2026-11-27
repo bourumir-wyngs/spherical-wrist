@@ -5022,6 +5022,7 @@ dependencies = [
  "glam",
  "parry3d",
  "pyo3",
+ "rayon",
  "rs-opw-kinematics",
  "rs-read-trimesh",
 ]
